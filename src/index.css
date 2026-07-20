@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-sand-50 text-sand-900 font-sans antialiased;
+    transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+      color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  html.dark body {
+    @apply bg-sand-900 text-sand-100;
+  }
+  ::selection {
+    @apply bg-clay-200 text-clay-900;
+  }
+  html.dark ::selection {
+    @apply bg-clay-700 text-clay-50;
+  }
+  *:focus-visible {
+    @apply outline-none ring-2 ring-clay-400 ring-offset-2 ring-offset-sand-50;
+  }
+  html.dark *:focus-visible {
+    @apply ring-offset-sand-900;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white dark:bg-sand-800 rounded-2xl shadow-card border border-sand-200/60 dark:border-sand-700/60;
+  }
+  .input-base {
+    @apply w-full rounded-xl border border-sand-300 dark:border-sand-700 bg-white dark:bg-sand-800
+      px-4 py-3 text-sand-900 dark:text-sand-100 placeholder-sand-400
+      focus:border-clay-400 focus:ring-2 focus:ring-clay-200 dark:focus:ring-clay-800
+      transition-colors duration-200;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium
+      border border-sand-300 dark:border-sand-700 bg-sand-50 dark:bg-sand-800
+      text-sand-700 dark:text-sand-200 cursor-pointer select-none
+      transition-all duration-200;
+  }
+  .chip-active {
+    @apply border-clay-400 bg-clay-100 text-clay-700 dark:bg-clay-800/40 dark:text-clay-100 dark:border-clay-600;
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(176, 144, 95, 0.3);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(176, 144, 95, 0.5); background-clip: padding-box; }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
