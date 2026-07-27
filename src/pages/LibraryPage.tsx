@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Clock, BadgeCheck, Lock, ArrowRight } from 'lucide-react';
+import { Clock, BadgeCheck, Lock, ArrowRight, Users } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { SectionTitle } from '../components/common/Card';
 import { Disclaimer } from '../components/common/Disclaimer';
 import { useAuth } from '../context/AuthContext';
 import { articleSummaries } from '../mock/articles';
+import { partnerArticles } from '../mock/communityInsights';
 import { fadeUp, staggerContainer, viewportStagger } from '../animations/variants';
 
 const topics = ['all', 'periods', 'pcos', 'fertility', 'pregnancy', 'menopause', 'general'] as const;
@@ -94,6 +95,36 @@ export function LibraryPage() {
 
       <div className="mt-12">
         <Disclaimer />
+      </div>
+
+      {/* For partners */}
+      <section className="mt-16">
+        <SectionTitle
+          eyebrow="For partners"
+          title="Helping someone you care about"
+          subtitle="Short, plain-language guides for partners and caregivers who want to understand PCOS, pregnancy, and menopause — and offer support that actually helps."
+          center
+        />
+        <motion.div {...viewportStagger} className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {partnerArticles.map((a) => (
+            <motion.div key={a.id} variants={fadeUp}>
+              <Card hover className="h-full">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-sage-50 text-sage-600 dark:bg-sage-800/30 dark:text-sage-200">
+                  <Users className="h-5 w-5" />
+                </span>
+                <h3 className="mt-4 font-display text-lg font-600 text-sand-900 dark:text-sand-100">{a.title}</h3>
+                <p className="mt-1.5 text-sm text-sand-600 dark:text-sand-400">{a.excerpt}</p>
+                <div className="mt-3 flex items-center gap-1 text-xs text-sand-500 dark:text-sand-400">
+                  <Clock className="h-3.5 w-3.5" /> {a.readMinutes} min read
+                </div>
+              </Card>
+            </motion.div>
+          ))}
+        </motion.div>
+      </section>
+
+      <div className="mt-12">
+        <Disclaimer variant="inline" />
       </div>
     </div>
   );

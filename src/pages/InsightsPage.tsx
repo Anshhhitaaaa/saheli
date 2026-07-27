@@ -3,13 +3,14 @@ import { motion } from 'framer-motion';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
 } from 'recharts';
-import { TrendingUp, Calendar, Smile } from 'lucide-react';
+import { TrendingUp, Calendar, Smile, Users } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Disclaimer } from '../components/common/Disclaimer';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { getInsightTrends, type InsightTrend } from '../services/cycleService';
 import { getCycleHistory } from '../mock/cycle';
+import { communityInsights } from '../mock/communityInsights';
 import { fadeUp, staggerContainer } from '../animations/variants';
 
 export function InsightsPage() {

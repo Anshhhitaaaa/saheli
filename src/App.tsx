@@ -19,6 +19,10 @@ import { FindCarePage } from './pages/FindCarePage';
 import { PregnancyPage } from './pages/PregnancyPage';
 import { InsightsPage } from './pages/InsightsPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { MedsTrackerPage } from './pages/MedsTrackerPage';
+import { SharingPage } from './pages/SharingPage';
+import { TeenModePage } from './pages/TeenModePage';
+import { DoctorSummaryPage } from './pages/DoctorSummaryPage';
 
 export default function App() {
   return (
@@ -49,6 +53,10 @@ export default function App() {
               <Route path="/care/find" element={<FindCarePage />} />
               <Route path="/pregnancy" element={<PregnancyPage />} />
               <Route path="/insights" element={<InsightsPage />} />
+              <Route path="/meds" element={<MedsTrackerPage />} />
+              <Route path="/sharing" element={<SharingPage />} />
+              <Route path="/teen" element={<TeenModePage />} />
+              <Route path="/doctor-summary" element={<DoctorSummaryPage />} />
               <Route path="/profile" element={<ProfilePage />} />
             </Route>
           </Routes>

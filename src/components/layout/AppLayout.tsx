@@ -14,6 +14,10 @@ import {
   Baby,
   BarChart3,
   Stethoscope,
+  Pill,
+  Share2,
+  FileText,
+  GraduationCap,
 } from 'lucide-react';
 import { Logo } from '../common/Logo';
 import { ThemeToggle } from '../common/ThemeToggle';
@@ -34,8 +38,11 @@ function navItems(pregnancyMode: boolean): NavItem[] {
     { to: '/assistant', label: 'Assistant', icon: Sparkles },
     { to: '/library', label: 'Library', icon: BookOpen },
     { to: '/insights', label: 'Insights', icon: BarChart3 },
+    { to: '/meds', label: 'Medications', icon: Pill },
     { to: '/community', label: 'Community', icon: Users },
     { to: '/care/find', label: 'Find Care', icon: Stethoscope },
+    { to: '/sharing', label: 'Sharing', icon: Share2 },
+    { to: '/doctor-summary', label: 'Doctor Summary', icon: FileText },
     { to: '/profile', label: 'Profile', icon: UserCircle },
   ];
   if (pregnancyMode) {

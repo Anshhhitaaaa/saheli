@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ShieldCheck, Download, Trash2, Bell, User, Focus } from 'lucide-react';
+import { ChevronDown, ShieldCheck, Download, Trash2, Bell, User, Focus, GraduationCap, Share2, FileText, Pill } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Input } from '../components/common/Input';
 import { Button } from '../components/common/Button';
@@ -27,6 +28,11 @@ const privacySections = [
     body: 'Only you. Your data is never shared with third parties or used for advertising. Community posts are pseudonymous and separate from your health data.',
   },
   {
+    title: 'AI conversation logging',
+    body: 'Flagged AI assistant conversations may be reviewed for safety and content quality. This is separate from your general privacy consent and applies only to assistant chats. You can change this anytime here.',
+    toggle: true,
+  },
+  {
     title: 'Export your data',
     body: 'You can download everything you have logged as a JSON file, anytime.',
     action: 'export',
@@ -46,6 +52,7 @@ export function ProfilePage() {
   const [openSection, setOpenSection] = useState<number | null>(0);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [aiConsented, setAiConsented] = useState(() => localStorage.getItem('saheli-ai-consent') === 'true');
 
   if (!user) return null;
 
@@ -141,6 +148,29 @@ export function ProfilePage() {
           </div>
         </Card>
 
+        {/* Quick links */}
+        <Card className="bg-sand-50/50 dark:bg-sand-700/20">
+          <h2 className="font-600 text-sand-900 dark:text-sand-100">More in your space</h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <Link to="/teen" className="flex items-center gap-3 rounded-xl bg-white p-3 transition-shadow hover:shadow-card dark:bg-sand-800">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-sage-50 text-sage-600 dark:bg-sage-800/30 dark:text-sage-200"><GraduationCap className="h-5 w-5" /></span>
+              <span className="text-sm font-600 text-sand-800 dark:text-sand-100">Teen mode</span>
+            </Link>
+            <Link to="/sharing" className="flex items-center gap-3 rounded-xl bg-white p-3 transition-shadow hover:shadow-card dark:bg-sand-800">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-clay-50 text-clay-600 dark:bg-clay-800/40 dark:text-clay-200"><Share2 className="h-5 w-5" /></span>
+              <span className="text-sm font-600 text-sand-800 dark:text-sand-100">Sharing & caregivers</span>
+            </Link>
+            <Link to="/doctor-summary" className="flex items-center gap-3 rounded-xl bg-white p-3 transition-shadow hover:shadow-card dark:bg-sand-800">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-clay-50 text-clay-600 dark:bg-clay-800/40 dark:text-clay-200"><FileText className="h-5 w-5" /></span>
+              <span className="text-sm font-600 text-sand-800 dark:text-sand-100">Doctor-visit summary</span>
+            </Link>
+            <Link to="/meds" className="flex items-center gap-3 rounded-xl bg-white p-3 transition-shadow hover:shadow-card dark:bg-sand-800">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-sage-50 text-sage-600 dark:bg-sage-800/30 dark:text-sage-200"><Pill className="h-5 w-5" /></span>
+              <span className="text-sm font-600 text-sand-800 dark:text-sand-100">Medications</span>
+            </Link>
+          </div>
+        </Card>
+
         {/* Privacy */}
         <Card>
           <h2 className="flex items-center gap-2 font-600 text-sand-900 dark:text-sand-100">
@@ -173,6 +203,23 @@ export function ProfilePage() {
                     >
                       <div className="pb-4">
                         <p className="text-sm text-sand-600 dark:text-sand-400">{s.body}</p>
+                        {s.toggle && (
+                          <label className="mt-3 flex items-center justify-between rounded-lg bg-sand-50 px-3 py-2 dark:bg-sand-700/30">
+                            <span className="text-sm font-600 text-sand-700 dark:text-sand-200">Allow AI conversation logging</span>
+                            <button
+                              onClick={() => {
+                                const next = !aiConsented;
+                                setAiConsented(next);
+                                localStorage.setItem('saheli-ai-consent', String(next));
+                              }}
+                              className={`relative h-6 w-11 rounded-full transition-colors ${aiConsented ? 'bg-clay-500' : 'bg-sand-300 dark:bg-sand-700'}`}
+                              role="switch"
+                              aria-checked={aiConsented}
+                            >
+                              <motion.span layout transition={{ duration: 0.2, ease: easeOut }} className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow" style={{ left: aiConsented ? '1.375rem' : '0.125rem' }} />
+                            </button>
+                          </label>
+                        )}
                         {s.action === 'export' && (
                           <Button size="sm" variant="outline" className="mt-3" leftIcon={<Download className="h-4 w-4" />} onClick={exportData}>
                             Download my data

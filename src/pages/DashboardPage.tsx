@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CalendarDays, Sparkles, BookOpen, Plus, TrendingUp, ArrowRight, Baby } from 'lucide-react';
+import { CalendarDays, Sparkles, BookOpen, Plus, TrendingUp, ArrowRight, Baby, Heart, LifeBuoy } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Disclaimer } from '../components/common/Disclaimer';
@@ -32,6 +32,8 @@ export function DashboardPage() {
   }, [user]);
 
   const dayCount = useCountUp(stats?.currentDay ?? 0);
+  const [moodToday, setMoodToday] = useState<string | null>(null);
+  const [showCrisis, setShowCrisis] = useState(false);
 
   const focusLabel: Record<string, string> = {
     pcos: 'PCOS focus',
@@ -124,6 +126,59 @@ export function DashboardPage() {
         </motion.div>
       </motion.div>
 
+      {/* Mental health check-in */}
+      <motion.div variants={fadeUp} initial="hidden" animate="visible" className="mt-6">
+        <Card className="border-sage-200/60 bg-sage-50/50 dark:border-sage-700/50 dark:bg-sage-800/20">
+          <div className="flex items-start gap-3">
+            <Heart className="mt-0.5 h-6 w-6 shrink-0 text-sage-600 dark:text-sage-300" />
+            <div className="flex-1">
+              <h3 className="font-600 text-sand-900 dark:text-sand-100">A gentle check-in</h3>
+              <p className="mt-1 text-sm text-sand-600 dark:text-sand-400">
+                Your mental health matters as much as your physical health. How are you feeling today — really?
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {['Okay', 'A bit low', 'Anxious', 'Overwhelmed', 'Doing well'].map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => { setMoodToday(m); if (m === 'Overwhelmed') setShowCrisis(true); }}
+                    className={`chip text-sm ${moodToday === m ? 'chip-active' : ''}`}
+                    aria-pressed={moodToday === m}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+              {moodToday && moodToday !== 'Overwhelmed' && (
+                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 text-sm text-sage-700 dark:text-sage-200">
+                  Thank you for checking in. {moodToday === 'Okay' || moodToday === 'Doing well' ? 'Glad to hear it.' : 'Be gentle with yourself today — and consider logging a symptom or talking to someone you trust.'}
+                </motion.p>
+              )}
+            </div>
+          </div>
+        </Card>
+      </motion.div>
+
+      {/* Crisis resources */}
+      {showCrisis && (
+        <motion.div variants={fadeUp} initial="hidden" animate="visible" className="mt-4">
+          <Card className="border-clay-200/70 bg-clay-50/50 dark:border-clay-700/50 dark:bg-clay-800/20">
+            <div className="flex items-start gap-3">
+              <LifeBuoy className="mt-0.5 h-6 w-6 shrink-0 text-clay-600 dark:text-clay-300" />
+              <div>
+                <h3 className="font-600 text-sand-900 dark:text-sand-100">If things feel overwhelming</h3>
+                <p className="mt-1 text-sm text-sand-600 dark:text-sand-400">You deserve support. These free, confidential resources are available right now:</p>
+                <ul className="mt-3 space-y-2 text-sm text-sand-700 dark:text-sand-200">
+                  <li className="flex items-center gap-2"><LifeBuoy className="h-4 w-4 text-clay-500" /> iCall (India): +91 9152987821 — Mon–Sat, 8 AM–10 PM</li>
+                  <li className="flex items-center gap-2"><LifeBuoy className="h-4 w-4 text-clay-500" /> Aasra: +91 9820466726 — 24/7</li>
+                  <li className="flex items-center gap-2"><LifeBuoy className="h-4 w-4 text-clay-500" /> International: findahelpline.com</li>
+                </ul>
+                <p className="mt-3 text-xs text-sand-500 dark:text-sand-400">If you are in immediate danger, contact your local emergency number.</p>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+      )}
+
       {/* Onboarding for new users */}
       {isNew && (
         <motion.div
@@ -171,6 +226,7 @@ export function DashboardPage() {
           { icon: BookOpen, title: 'Library', body: 'Read articles tailored to your focus.', to: '/library' },
           { icon: Baby, title: 'Pregnancy mode', body: 'Week-by-week milestones.', to: '/pregnancy', hidden: !user?.pregnancyMode },
           { icon: CalendarDays, title: 'Cycle tracker', body: 'Calendar with animated logging.', to: '/tracker' },
+          { icon: BookOpen, title: 'Doctor summary', body: 'Export your data for your visit.', to: '/doctor-summary' },
         ]
           .filter((c) => !c.hidden)
           .map((c) => {

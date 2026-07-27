@@ -1,0 +1,17 @@
+{
+  "name": "Saheli — Women's Health Companion",
+  "short_name": "Saheli",
+  "description": "Cycle tracking, a medically-reviewed library, a grounded AI health assistant, and pathways to real care.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FBF8F4",
+  "theme_color": "#B84A34",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Send, Heart, Shield } from 'lucide-react';
+import { MessageSquare, Send, Heart, Shield, Flag, X, TrendingUp } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
+import { Modal } from '../components/common/Modal';
 import { Disclaimer } from '../components/common/Disclaimer';
 import { communityPosts, type CommunityPost, type CommunityPost as Post } from '../mock/community';
+import { communityInsights } from '../mock/communityInsights';
 import { fadeUp, staggerContainer, easeOut } from '../animations/variants';
 
 const topics = ['all', 'periods', 'pcos', 'fertility', 'pregnancy', 'menopause', 'general'] as const;
@@ -14,6 +16,8 @@ export function CommunityPage() {
   const [topic, setTopic] = useState<(typeof topics)[number]>('all');
   const [composing, setComposing] = useState(false);
   const [draft, setDraft] = useState({ title: '', body: '' });
+  const [reporting, setReporting] = useState<string | null>(null);
+  const [reportReason, setReportReason] = useState('');
 
   const filtered = topic === 'all' ? posts : posts.filter((p) => p.topic === topic);
 
@@ -107,9 +111,55 @@ export function CommunityPage() {
       <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="mt-6 space-y-4">
         <AnimatePresence>
           {filtered.map((post) => (
-            <PostCard key={post.id} post={post} onReply={(body) => addReply(setPosts, post.id, body)} />
+            <PostCard key={post.id} post={post} onReply={(body) => addReply(setPosts, post.id, body)} onReport={() => setReporting(post.id)} />
           ))}
         </AnimatePresence>
+      </motion.div>
+
+      {/* Report modal */}
+      <Modal open={!!reporting} onClose={() => { setReporting(null); setReportReason(''); }} title="Report this post" size="sm">
+        <div className="space-y-4">
+          <p className="text-sm text-sand-600 dark:text-sand-400">
+            Help us keep the community kind and safe. Reports are reviewed by our moderation team. You will not be identified to the poster.
+          </p>
+          <div>
+            <p className="mb-2 text-sm font-600 text-sand-800 dark:text-sand-200">Reason</p>
+            <div className="flex flex-wrap gap-2">
+              {['Medical misinformation', 'Harassment or unkindness', 'Spam', 'Something else'].map((r) => (
+                <button key={r} onClick={() => setReportReason(r)} className={`chip text-sm ${reportReason === r ? 'chip-active' : ''}`} aria-pressed={reportReason === r}>
+                  {r}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => { setReporting(null); setReportReason(''); }}>Cancel</Button>
+            <Button onClick={() => { setReporting(null); setReportReason(''); }} disabled={!reportReason}>Submit report</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Aggregate community insights */}
+      <motion.div variants={fadeUp} initial="hidden" animate="visible" className="mt-6">
+        <Card className="bg-sage-50/60 dark:bg-sage-800/20">
+          <h2 className="flex items-center gap-2 font-600 text-sand-900 dark:text-sand-100">
+            <TrendingUp className="h-5 w-5 text-sage-600 dark:text-sage-300" /> Patterns from the community
+          </h2>
+          <p className="mt-1 text-sm text-sand-500 dark:text-sand-400">
+            Aggregate, anonymized patterns from community tracking — framed as peer patterns, never diagnostic.
+          </p>
+          <div className="mt-4 space-y-3">
+            {communityInsights.slice(0, 3).map((insight) => (
+              <div key={insight.topic} className="flex items-start gap-3 rounded-xl bg-white/60 p-3 dark:bg-sand-800/40">
+                <span className="rounded-full bg-sage-100 px-2.5 py-0.5 text-xs font-600 capitalize text-sage-700 dark:bg-sage-700/40 dark:text-sage-200">{insight.label}</span>
+                <div className="flex-1">
+                  <p className="text-sm text-sand-700 dark:text-sand-200">{insight.pattern}</p>
+                  <p className="mt-1 text-xs text-sand-400">{insight.count.toLocaleString()} members tracking this</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
       </motion.div>
 
       <div className="mt-8">
@@ -119,7 +169,7 @@ export function CommunityPage() {
   );
 }
 
-function PostCard({ post, onReply }: { post: CommunityPost; onReply: (body: string) => void }) {
+function PostCard({ post, onReply, onReport }: { post: CommunityPost; onReply: (body: string) => void; onReport: () => void }) {
   const [replying, setReplying] = useState(false);
   const [body, setBody] = useState('');
   return (
@@ -140,6 +190,9 @@ function PostCard({ post, onReply }: { post: CommunityPost; onReply: (body: stri
           </button>
           <button onClick={() => setReplying((r) => !r)} className="flex items-center gap-1 hover:text-clay-500">
             <MessageSquare className="h-3.5 w-3.5" /> {post.replies.length}
+          </button>
+          <button onClick={onReport} className="ml-auto flex items-center gap-1 hover:text-danger" aria-label="Report post">
+            <Flag className="h-3.5 w-3.5" /> Report
           </button>
         </div>
 

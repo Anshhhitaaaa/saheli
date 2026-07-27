@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Send, BookOpen, AlertTriangle } from 'lucide-react';
+import { Sparkles, Send, BookOpen, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Disclaimer } from '../components/common/Disclaimer';
 import { SeekCareBanner } from '../components/common/SeekCareBanner';
+import { Modal } from '../components/common/Modal';
 import { useAuth } from '../context/AuthContext';
 import {
   streamAssistantMessage,
@@ -24,6 +25,8 @@ export function AssistantPage() {
   const [draft, setDraft] = useState('');
   const [draftSources, setDraftSources] = useState<AssistantSource[]>([]);
   const [draftSafety, setDraftSafety] = useState(false);
+  const [consentOpen, setConsentOpen] = useState(false);
+  const [aiConsented, setAiConsented] = useState(() => localStorage.getItem('saheli-ai-consent') === 'true');
   const scrollRef = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotionPref();
   const conversationId = useRef('c_' + (user?.id ?? 'anon'));
@@ -36,6 +39,10 @@ export function AssistantPage() {
 
   const send = async (text: string) => {
     if (!text.trim() || streaming) return;
+    if (!aiConsented) {
+      setConsentOpen(true);
+      return;
+    }
     const userMsg: AssistantMessage = {
       id: 'm' + Date.now(),
       role: 'user',
@@ -191,6 +198,39 @@ export function AssistantPage() {
           </Button>
         </form>
       </div>
+
+      {/* AI consent modal */}
+      <Modal open={consentOpen} onClose={() => setConsentOpen(false)} title="Before we begin" size="md" labelledBy="ai-consent-title">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 rounded-xl bg-sand-50 p-4 dark:bg-sand-700/30">
+            <ShieldCheck className="mt-0.5 h-6 w-6 shrink-0 text-sage-600 dark:text-sage-300" />
+            <div>
+              <h3 id="ai-consent-title" className="font-600 text-sand-900 dark:text-sand-100">Your conversations are sensitive</h3>
+              <p className="mt-1 text-sm text-sand-600 dark:text-sand-400">
+                To improve quality, Saheli may review flagged conversations for safety and content quality. This is separate from your general privacy settings and applies only to assistant chats.
+              </p>
+            </div>
+          </div>
+          <label className="flex items-start gap-2.5">
+            <input
+              type="checkbox"
+              checked={aiConsented}
+              onChange={(e) => {
+                setAiConsented(e.target.checked);
+                localStorage.setItem('saheli-ai-consent', String(e.target.checked));
+              }}
+              className="mt-0.5 h-4 w-4 rounded accent-clay-500"
+            />
+            <span className="text-sm text-sand-700 dark:text-sand-200">
+              I consent to my assistant conversations being logged for safety and quality review, as described above. I can change this anytime in Profile &gt; Privacy.
+            </span>
+          </label>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setConsentOpen(false)}>Not now</Button>
+            <Button onClick={() => { setConsentOpen(false); }} disabled={!aiConsented}>Continue</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

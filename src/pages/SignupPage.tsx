@@ -17,6 +17,8 @@ const focusOptions: { value: OnboardingFocus; label: string; emoji: string }[] =
   { value: 'general', label: 'Just exploring', emoji: '✨' },
 ];
 
+const teenOption = { value: 'periods', label: 'Teen (first cycles)', emoji: '🎓' };
+
 export function SignupPage() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
@@ -24,6 +26,7 @@ export function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [focus, setFocus] = useState<OnboardingFocus>('general');
+  const [isTeen, setIsTeen] = useState(false);
   const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
   const [loading, setLoading] = useState(false);
 
@@ -40,7 +43,11 @@ export function SignupPage() {
     setLoading(true);
     try {
       await signUp({ name, email, password, focus });
-      navigate('/dashboard');
+      if (isTeen) {
+        navigate('/teen');
+      } else {
+        navigate('/dashboard');
+      }
     } catch {
       setErrors({ email: 'Could not create account. Try again.' });
     } finally {
@@ -88,14 +95,23 @@ export function SignupPage() {
               <button
                 key={opt.value}
                 type="button"
-                onClick={() => setFocus(opt.value)}
-                className={`chip ${focus === opt.value ? 'chip-active' : ''}`}
-                aria-pressed={focus === opt.value}
+                onClick={() => { setFocus(opt.value); setIsTeen(false); }}
+                className={`chip ${!isTeen && focus === opt.value ? 'chip-active' : ''}`}
+                aria-pressed={!isTeen && focus === opt.value}
               >
                 <span aria-hidden>{opt.emoji}</span>
                 {opt.label}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => { setIsTeen(true); setFocus('periods'); }}
+              className={`chip ${isTeen ? 'chip-active' : ''}`}
+              aria-pressed={isTeen}
+            >
+              <span aria-hidden>{teenOption.emoji}</span>
+              {teenOption.label}
+            </button>
           </div>
           <motion.p
             key={focus}
