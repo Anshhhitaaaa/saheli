@@ -227,7 +227,7 @@ export function LandingPage() {
           </motion.p>
           <motion.div variants={fadeUp} className="mt-8 flex justify-center">
             <Link to="/signup">
-              <Button size="lg" className="bg-white text-clay-700 hover:bg-sand-50" rightIcon={<ArrowRight className="h-5 w-5" />}>
+              <Button size="lg" className="bg-white text-clay-700 hover:bg-sand-50 dark:bg-white dark:text-clay-700 dark:hover:bg-sand-100" rightIcon={<ArrowRight className="h-5 w-5" />}>
                 Get started
               </Button>
             </Link>
