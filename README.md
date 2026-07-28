@@ -180,6 +180,15 @@ VITE_API_URL=
 
 ---
 
+## 👩‍💻 Author & Contact
+
+**Anshita Agrawal**
+- 📧 **Email:** [agrawal.anshita07@gmail.com](mailto:agrawal.anshita07@gmail.com)
+- 📞 **Phone:** +91 9315298434
+- 🐙 **GitHub:** [@Anshhhitaaaa](https://github.com/Anshhhitaaaa)
+
+---
+
 ## 🔒 Privacy & Medical Disclaimer
 
 - **Privacy First:** Saheli does not sell personal health logs or tracking data. All share links are opt-in and configurable.

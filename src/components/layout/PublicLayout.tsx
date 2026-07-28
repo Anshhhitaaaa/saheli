@@ -100,9 +100,10 @@ export function PublicLayout() {
               <Link to="/login" className="text-sand-600 hover:text-clay-600 dark:text-sand-400">Log in</Link>
             </div>
           </div>
-          <p className="mt-8 text-xs text-sand-500 dark:text-sand-500">
-            © 2026 Saheli. Educational content only — not medical advice.
-          </p>
+          <div className="mt-8 flex flex-col items-center justify-between gap-2 border-t border-sand-200/60 pt-4 text-xs text-sand-500 dark:border-sand-700/60 sm:flex-row">
+            <p>© 2026 Saheli. Designed & Developed by <span className="font-600 text-clay-600 dark:text-clay-300">Anshita Agrawal</span>.</p>
+            <p>Educational content only — not medical advice.</p>
+          </div>
         </div>
       </footer>
     </div>

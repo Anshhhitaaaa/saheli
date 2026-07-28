@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, MessageSquare, MapPin, Phone, AlertTriangle, CheckCircle2, Send } from 'lucide-react';
+import { Mail, MessageSquare, MapPin, Phone, AlertTriangle, CheckCircle2, Send, User } from 'lucide-react';
 import { Input } from '../components/common/Input';
 import { Button } from '../components/common/Button';
 import { Card } from '../components/common/Card';
@@ -116,13 +116,16 @@ export function ContactPage() {
             <h3 className="font-600 text-sand-900 dark:text-sand-100">Other ways to reach us</h3>
             <ul className="mt-3 space-y-3 text-sm text-sand-600 dark:text-sand-400">
               <li className="flex items-center gap-2.5">
-                <Mail className="h-4 w-4 text-clay-500" /> hello@saheli.app
+                <User className="h-4 w-4 text-clay-500" /> Anshita Agrawal
               </li>
               <li className="flex items-center gap-2.5">
-                <Phone className="h-4 w-4 text-clay-500" /> +91 80 2345 6789
+                <Mail className="h-4 w-4 text-clay-500" /> agrawal.anshita07@gmail.com
               </li>
               <li className="flex items-center gap-2.5">
-                <MapPin className="h-4 w-4 text-clay-500" /> Bengaluru, India
+                <Phone className="h-4 w-4 text-clay-500" /> +91 9315298434
+              </li>
+              <li className="flex items-center gap-2.5">
+                <MapPin className="h-4 w-4 text-clay-500" /> India
               </li>
               <li className="flex items-center gap-2.5">
                 <MessageSquare className="h-4 w-4 text-clay-500" /> Mon–Fri, 9 AM – 6 PM IST
