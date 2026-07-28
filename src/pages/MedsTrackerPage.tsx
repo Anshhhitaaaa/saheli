@@ -1,27 +1,28 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Pill, Clock, Check, X, Bell } from 'lucide-react';
+import { Plus, Pill, Clock, Check, Bell, Trash2 } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Input } from '../components/common/Input';
 import { Button } from '../components/common/Button';
 import { Disclaimer } from '../components/common/Disclaimer';
 import { Modal } from '../components/common/Modal';
-import { medications as initialMeds, medicationTypes, type Medication } from '../mock/medications';
-import { fadeUp, staggerContainer, easeOut } from '../animations/variants';
+import { medicationTypes, type Medication } from '../mock/medications';
+import { fadeUp, staggerContainer } from '../animations/variants';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 
 export function MedsTrackerPage() {
   const { user } = useAuth();
-  const [meds, setMeds] = useState<Medication[]>(initialMeds);
+  const [meds, setMeds] = useState<Medication[]>([]);
   const [adding, setAdding] = useState(false);
-  const [takenToday, setTakenToday] = useState<Record<string, boolean>>({ m1: true, m2: true });
   const [form, setForm] = useState({ name: '', dose: '', schedule: '', type: 'supplement' as Medication['type'], notes: '' });
+
+  const todayStr = new Date().toISOString().slice(0, 10);
 
   useEffect(() => {
     if (user?.email) {
       api.medications.get(user.email).then((res) => {
-        if (res.meds && res.meds.length > 0) {
+        if (res.meds) {
           setMeds(res.meds);
         }
       }).catch(() => {});
@@ -37,8 +38,9 @@ export function MedsTrackerPage() {
       dose: form.dose,
       schedule: form.schedule,
       active: true,
-      startedAt: new Date().toISOString().slice(0, 10),
+      startedAt: todayStr,
       notes: form.notes.trim() || undefined,
+      takenDates: [],
     };
 
     setMeds((prev) => [...prev, m]);
@@ -68,6 +70,32 @@ export function MedsTrackerPage() {
     }
   };
 
+  const toggleTakenToday = (m: Medication) => {
+    const currentDates = m.takenDates || [];
+    const taken = currentDates.includes(todayStr);
+    const nextDates = taken
+      ? currentDates.filter((d) => d !== todayStr)
+      : [...currentDates, todayStr];
+
+    setMeds((prev) =>
+      prev.map((item) => (item.id === m.id ? { ...item, takenDates: nextDates } : item))
+    );
+
+    if (user?.email) {
+      api.medications.update(user.email, m.id, { takenDates: nextDates }).catch(() => {});
+    }
+  };
+
+  const deleteMed = async (id: string) => {
+    setMeds((prev) => prev.filter((m) => m.id !== id));
+    if (user?.email) {
+      try {
+        const res = await api.medications.delete(user.email, id);
+        if (res.meds) setMeds(res.meds);
+      } catch {}
+    }
+  };
+
   return (
     <div className="mx-auto max-w-4xl">
       <motion.div variants={staggerContainer} initial="hidden" animate="visible">
@@ -86,59 +114,85 @@ export function MedsTrackerPage() {
         </Button>
       </div>
 
-      <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="mt-4 space-y-3">
-        <AnimatePresence>
-          {meds.map((m) => {
-            const typeLabel = medicationTypes.find((t) => t.value === m.type)?.label ?? m.type;
-            const taken = takenToday[m.id];
-            return (
-              <motion.div key={m.id} variants={fadeUp} initial="hidden" animate="visible" exit={{ opacity: 0 }} layout>
-                <Card>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3">
-                      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${m.active ? 'bg-clay-50 text-clay-600 dark:bg-clay-800/40 dark:text-clay-200' : 'bg-sand-100 text-sand-400 dark:bg-sand-700/50'}`}>
-                        <Pill className="h-5 w-5" />
-                      </span>
-                      <div>
-                        <h3 className="font-600 text-sand-900 dark:text-sand-100">{m.name}</h3>
-                        <p className="text-sm text-sand-500 dark:text-sand-400">
-                          {m.dose} · {typeLabel} · since {m.startedAt}
-                        </p>
-                        <p className="mt-1 flex items-center gap-1.5 text-sm text-sand-600 dark:text-sand-300">
-                          <Clock className="h-3.5 w-3.5" /> {m.schedule}
-                        </p>
-                        {m.notes && <p className="mt-1 text-xs text-sand-500 dark:text-sand-400">{m.notes}</p>}
+      {meds.length === 0 ? (
+        <Card className="mt-4 flex flex-col items-center justify-center py-12 text-center">
+          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-clay-50 text-clay-600 dark:bg-clay-800/40 dark:text-clay-200">
+            <Pill className="h-7 w-7" />
+          </span>
+          <h3 className="mt-4 font-display text-lg font-600 text-sand-900 dark:text-sand-100">
+            No medications added yet
+          </h3>
+          <p className="mt-1 max-w-sm text-sm text-sand-600 dark:text-sand-400">
+            Add your prescriptions, PCOS supplements, or vitamins to track them daily and mark them as taken.
+          </p>
+          <Button size="sm" className="mt-4" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setAdding(true)}>
+            Add medication
+          </Button>
+        </Card>
+      ) : (
+        <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="mt-4 space-y-3">
+          <AnimatePresence>
+            {meds.map((m) => {
+              const typeLabel = medicationTypes.find((t) => t.value === m.type)?.label ?? m.type;
+              const taken = (m.takenDates || []).includes(todayStr);
+              return (
+                <motion.div key={m.id} variants={fadeUp} initial="hidden" animate="visible" exit={{ opacity: 0 }} layout>
+                  <Card>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3">
+                        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${m.active ? 'bg-clay-50 text-clay-600 dark:bg-clay-800/40 dark:text-clay-200' : 'bg-sand-100 text-sand-400 dark:bg-sand-700/50'}`}>
+                          <Pill className="h-5 w-5" />
+                        </span>
+                        <div>
+                          <h3 className="font-600 text-sand-900 dark:text-sand-100">{m.name}</h3>
+                          <p className="text-sm text-sand-500 dark:text-sand-400">
+                            {m.dose} · {typeLabel} · since {m.startedAt}
+                          </p>
+                          <p className="mt-1 flex items-center gap-1.5 text-sm text-sand-600 dark:text-sand-300">
+                            <Clock className="h-3.5 w-3.5" /> {m.schedule}
+                          </p>
+                          {m.notes && <p className="mt-1 text-xs text-sand-500 dark:text-sand-400">{m.notes}</p>}
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => toggleActive(m.id)}
+                            className={`chip text-xs ${m.active ? 'chip-active' : ''}`}
+                            aria-pressed={m.active}
+                          >
+                            {m.active ? 'Active' : 'Paused'}
+                          </button>
+                          <button
+                            onClick={() => deleteMed(m.id)}
+                            className="rounded-lg p-1.5 text-sand-400 hover:bg-sand-100 hover:text-danger dark:hover:bg-sand-800"
+                            title="Delete medication"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                        {m.active && (
+                          <button
+                            onClick={() => toggleTakenToday(m)}
+                            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-600 transition-colors ${
+                              taken
+                                ? 'bg-success/15 text-success'
+                                : 'bg-sand-100 text-sand-600 hover:bg-sand-200 dark:bg-sand-700/50 dark:text-sand-300'
+                            }`}
+                          >
+                            {taken ? <Check className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
+                            {taken ? 'Taken today' : 'Mark taken'}
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <button
-                        onClick={() => toggleActive(m.id)}
-                        className={`chip text-xs ${m.active ? 'chip-active' : ''}`}
-                        aria-pressed={m.active}
-                      >
-                        {m.active ? 'Active' : 'Paused'}
-                      </button>
-                      {m.active && (
-                        <button
-                          onClick={() => setTakenToday((prev) => ({ ...prev, [m.id]: !prev[m.id] }))}
-                          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-600 transition-colors ${
-                            taken
-                              ? 'bg-success/15 text-success'
-                              : 'bg-sand-100 text-sand-600 hover:bg-sand-200 dark:bg-sand-700/50 dark:text-sand-300'
-                          }`}
-                        >
-                          {taken ? <Check className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
-                          {taken ? 'Taken today' : 'Mark taken'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
-      </motion.div>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </motion.div>
+      )}
 
       <Modal open={adding} onClose={() => setAdding(false)} title="Add medication" size="md">
         <div className="space-y-4">

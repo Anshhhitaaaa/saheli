@@ -78,6 +78,10 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify({ email, patch }),
       }),
+    delete: (email: string, id: string) =>
+      request<{ meds: any[] }>(`/api/medications/${id}?email=${encodeURIComponent(email)}`, {
+        method: 'DELETE',
+      }),
   },
 
   // Community API

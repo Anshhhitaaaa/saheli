@@ -7,6 +7,7 @@ export interface Medication {
   active: boolean;
   startedAt: string;
   notes?: string;
+  takenDates?: string[];
 }
 
 export const medications: Medication[] = [

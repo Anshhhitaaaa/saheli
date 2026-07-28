@@ -13,42 +13,59 @@ import { getCycleHistory } from '../mock/cycle';
 import { communityInsights } from '../mock/communityInsights';
 import { fadeUp, staggerContainer } from '../animations/variants';
 
+import { api } from '../services/api';
+
 export function InsightsPage() {
   const { user } = useAuth();
   const { theme } = useTheme();
   const [trends, setTrends] = useState<InsightTrend[]>([]);
+  const [cycleLengths, setCycleLengths] = useState<{ label: string; days: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
     (async () => {
       if (!user) return;
-      const [t, h] = await Promise.all([
-        getInsightTrends(user.email),
-        Promise.resolve(getCycleHistory(user.email)),
-      ]);
-      if (!active) return;
-      setTrends(t);
-      // cycle length per period start
-      const starts: string[] = [];
-      let prev = false;
-      for (const d of [...h].sort((a, b) => a.date.localeCompare(b.date))) {
-        const isFlow = d.flow !== 'none';
-        if (isFlow && !prev) starts.push(d.date);
-        prev = isFlow;
+      try {
+        const [t, cycleRes] = await Promise.all([
+          getInsightTrends(user.email),
+          api.cycle.get(user.email).catch(() => ({ logs: [] })),
+        ]);
+        if (!active) return;
+        setTrends(t);
+
+        const logs = (cycleRes && Array.isArray(cycleRes.logs) && cycleRes.logs.length > 0)
+          ? cycleRes.logs
+          : getCycleHistory(user.email);
+
+        const starts: string[] = [];
+        let prev = false;
+        const sortedLogs = [...logs].sort((a: any, b: any) => a.date.localeCompare(b.date));
+        for (const d of sortedLogs) {
+          const isFlow = !!(d.flow && d.flow !== 'none');
+          if (isFlow && !prev) starts.push(d.date);
+          prev = isFlow;
+        }
+        const lengths: { label: string; days: number }[] = [];
+        for (let i = 1; i < starts.length; i++) {
+          const days = Math.round((new Date(starts[i]).getTime() - new Date(starts[i - 1]).getTime()) / 86400000);
+          if (days > 10 && days < 90) {
+            lengths.push({ label: 'Cycle ' + i, days });
+          }
+        }
+        if (starts.length === 1) {
+          const currentDays = Math.max(1, Math.floor((Date.now() - new Date(starts[0]).getTime()) / 86400000) + 1);
+          lengths.push({ label: 'Current', days: currentDays });
+        }
+        setCycleLengths(lengths);
+      } catch {
+        // fallback
+      } finally {
+        if (active) setLoading(false);
       }
-      const lengths: { label: string; days: number }[] = [];
-      for (let i = 1; i < starts.length; i++) {
-        const days = Math.round((new Date(starts[i]).getTime() - new Date(starts[i - 1]).getTime()) / 86400000);
-        lengths.push({ label: 'C' + i, days });
-      }
-      setCycleLengths(lengths);
-      setLoading(false);
     })();
     return () => { active = false; };
   }, [user]);
-
-  const [cycleLengths, setCycleLengths] = useState<{ label: string; days: number }[]>([]);
 
   const isDark = theme === 'dark';
   const axisColor = isDark ? '#D8E6DC' : '#735C3E';

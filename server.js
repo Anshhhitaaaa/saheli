@@ -286,6 +286,16 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 200, { meds });
     }
 
+    if (pathname.startsWith('/api/medications/') && req.method === 'DELETE') {
+      const id = pathname.replace('/api/medications/', '');
+      const email = url.searchParams.get('email');
+      if (!email) return sendJSON(res, 400, { error: 'Email required' });
+
+      await db.collection('medications').deleteOne({ id, email: email.toLowerCase().trim() });
+      const meds = await db.collection('medications').find({ email: email.toLowerCase().trim() }).toArray();
+      return sendJSON(res, 200, { meds });
+    }
+
     // --- LANGGRAPH + LANGCHAIN + LLAMA 3 RAG ASSISTANT ROUTE ---
     if (pathname === '/api/assistant/chat' && req.method === 'POST') {
       const body = await parseJSONBody(req);
