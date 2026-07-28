@@ -226,10 +226,12 @@ export function LandingPage() {
             Free to start. No judgment, no jargon — just a calmer way to understand your body.
           </motion.p>
           <motion.div variants={fadeUp} className="mt-8 flex justify-center">
-            <Link to="/signup">
-              <Button size="lg" className="bg-white text-clay-700 hover:bg-sand-50 dark:bg-white dark:text-clay-700 dark:hover:bg-sand-100" rightIcon={<ArrowRight className="h-5 w-5" />}>
-                Get started
-              </Button>
+            <Link
+              to="/signup"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-7 py-3.5 text-base font-700 text-clay-700 shadow-md transition-all hover:bg-sand-50 hover:text-clay-800 hover:shadow-lg active:scale-95"
+            >
+              Get started
+              <ArrowRight className="h-5 w-5 text-clay-700" />
             </Link>
           </motion.div>
         </motion.div>
