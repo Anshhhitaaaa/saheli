@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Clock, BadgeCheck, Lock, ArrowRight, Users } from 'lucide-react';
+import { Clock, BadgeCheck, Lock, ArrowRight, Users, Search } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { SectionTitle } from '../components/common/Card';
 import { Disclaimer } from '../components/common/Disclaimer';
@@ -16,8 +16,17 @@ export function LibraryPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [topic, setTopic] = useState<(typeof topics)[number]>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const filtered = topic === 'all' ? articleSummaries : articleSummaries.filter((a) => a.topic === topic);
+  const filtered = articleSummaries.filter((a) => {
+    const matchTopic = topic === 'all' || a.topic === topic;
+    const matchSearch =
+      !searchQuery.trim() ||
+      a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      a.excerpt.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      a.topic.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchTopic && matchSearch;
+  });
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
@@ -28,7 +37,20 @@ export function LibraryPage() {
         center
       />
 
-      <div className="mt-8 flex flex-wrap justify-center gap-2">
+      <div className="mt-8 mx-auto max-w-md">
+        <div className="relative">
+          <Search className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-sand-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search articles by keyword (e.g. PCOS, cramps, fertility)..."
+            className="input-base pl-11 shadow-sm"
+          />
+        </div>
+      </div>
+
+      <div className="mt-6 flex flex-wrap justify-center gap-2">
         {topics.map((t) => (
           <button
             key={t}

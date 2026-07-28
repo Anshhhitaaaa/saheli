@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserPlus, Eye, EyeOff, Check, X, Shield, Copy } from 'lucide-react';
 import { Card } from '../components/common/Card';
@@ -6,6 +6,8 @@ import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { Disclaimer } from '../components/common/Disclaimer';
 import { fadeUp, staggerContainer, easeOut } from '../animations/variants';
+import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 interface ShareLink {
   id: string;
@@ -20,10 +22,21 @@ const initialShares: ShareLink[] = [
 ];
 
 export function SharingPage() {
+  const { user } = useAuth();
   const [shares, setShares] = useState<ShareLink[]>(initialShares);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: '', relationship: '', cycle: true, symptoms: false, pregnancy: false, insights: true });
   const [copied, setCopied] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user?.email) {
+      api.sharing.get(user.email).then((res) => {
+        if (res.shares && res.shares.length > 0) {
+          setShares(res.shares);
+        }
+      }).catch(() => {});
+    }
+  }, [user?.email]);
 
   const add = () => {
     if (!form.name.trim()) return;
@@ -37,6 +50,12 @@ export function SharingPage() {
     setShares((prev) => [...prev, s]);
     setForm({ name: '', relationship: '', cycle: true, symptoms: false, pregnancy: false, insights: true });
     setAdding(false);
+
+    if (user?.email) {
+      api.sharing.create(user.email, s.name, s.relationship, s.permissions).then((res) => {
+        if (res.shares) setShares(res.shares);
+      }).catch(() => {});
+    }
   };
 
   const togglePerm = (id: string, key: keyof ShareLink['permissions']) =>

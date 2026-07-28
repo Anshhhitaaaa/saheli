@@ -15,12 +15,13 @@ export function buildDoctorSummary(
   email: string,
   stats: CycleStats | null,
   notes = '',
+  realLogs?: CycleDay[],
 ): DoctorSummaryData {
-  const history = getCycleHistory(email);
+  const history = realLogs && realLogs.length > 0 ? realLogs : getCycleHistory(email);
   const starts: string[] = [];
   let prev = false;
   for (const d of [...history].sort((a, b) => a.date.localeCompare(b.date))) {
-    const isFlow = d.flow !== 'none';
+    const isFlow = !!(d.flow && d.flow !== 'none');
     if (isFlow && !prev) starts.push(d.date);
     prev = isFlow;
   }

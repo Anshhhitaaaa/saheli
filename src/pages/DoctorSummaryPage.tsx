@@ -10,9 +10,13 @@ import { buildDoctorSummary, printDoctorSummary } from '../services/exportServic
 import { downloadICS, type CalendarEvent } from '../services/calendarService';
 import { fadeUp, staggerContainer } from '../animations/variants';
 
+import { api } from '../services/api';
+import type { CycleDay } from '../mock/cycle';
+
 export function DoctorSummaryPage() {
   const { user } = useAuth();
   const [stats, setStats] = useState<CycleStats | null>(null);
+  const [cycleLogs, setCycleLogs] = useState<CycleDay[]>([]);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -20,10 +24,18 @@ export function DoctorSummaryPage() {
     let active = true;
     (async () => {
       if (!user) return;
-      const s = await getCycleStats(user.email);
-      if (active) {
-        setStats(s);
-        setLoading(false);
+      try {
+        const [s, res] = await Promise.all([
+          getCycleStats(user.email),
+          api.cycle.get(user.email).catch(() => ({ logs: [] })),
+        ]);
+        if (active) {
+          setStats(s);
+          if (res && Array.isArray(res.logs)) setCycleLogs(res.logs);
+          setLoading(false);
+        }
+      } catch {
+        if (active) setLoading(false);
       }
     })();
     return () => { active = false; };
@@ -31,7 +43,7 @@ export function DoctorSummaryPage() {
 
   const handlePrint = () => {
     if (!user) return;
-    const data = buildDoctorSummary(user.email, stats, notes);
+    const data = buildDoctorSummary(user.email, stats, notes, cycleLogs);
     printDoctorSummary(data, user.name);
   };
 
