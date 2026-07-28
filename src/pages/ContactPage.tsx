@@ -79,10 +79,17 @@ export function ContactPage() {
                   initial={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                 >
-                  <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} error={errors.name} />
+                  <Input
+                    label="Name"
+                    placeholder="Your full name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    error={errors.name}
+                  />
                   <Input
                     label="Email"
                     type="email"
+                    placeholder="your.email@example.com"
                     leftIcon={<Mail className="h-5 w-5" />}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
