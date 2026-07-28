@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ShieldCheck, Download, Trash2, Bell, User, Focus, GraduationCap, Share2, FileText, Pill } from 'lucide-react';
+import { ChevronDown, ShieldCheck, Download, Trash2, Bell, User, Focus, GraduationCap, Share2, FileText, Pill, Lock, EyeOff } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Input } from '../components/common/Input';
 import { Button } from '../components/common/Button';
 import { Disclaimer } from '../components/common/Disclaimer';
 import { useAuth, type OnboardingFocus } from '../context/AuthContext';
+import { useNotifications, type NotificationCategories } from '../context/NotificationContext';
 import { fadeUp, staggerContainer, easeOut } from '../animations/variants';
 
 const focusOptions: { value: OnboardingFocus; label: string }[] = [
@@ -16,6 +17,17 @@ const focusOptions: { value: OnboardingFocus; label: string }[] = [
   { value: 'pregnancy', label: 'Pregnancy' },
   { value: 'menopause', label: 'Menopause' },
   { value: 'general', label: 'General' },
+];
+
+const categoryLabels: { key: keyof NotificationCategories; title: string; desc: string }[] = [
+  { key: 'cycle', title: 'Cycle & Predictions', desc: 'Period expected soon, fertile window, and predicted ovulation.' },
+  { key: 'logging', title: 'Logging & Medications', desc: 'Gentle check-in nudges and medication/supplement reminders.' },
+  { key: 'insights', title: 'Insights & Patterns', desc: 'Monthly cycle insight summaries and observational pattern shifts.' },
+  { key: 'assistant', title: 'AI Assistant', desc: 'Alerts when AI answers are ready or follow-ups requested.' },
+  { key: 'pregnancy', title: 'Pregnancy Mode', desc: 'Weekly pregnancy milestones and relevant trimester guidance.' },
+  { key: 'community', title: 'Community Activity', desc: 'Replies and reactions to your pseudonymous forum posts.' },
+  { key: 'care', title: 'Care & Appointments', desc: 'Reminders for booked visits and annual checkup check-ins.' },
+  { key: 'account', title: 'Account & Security', desc: 'Data export status and security login alerts.' },
 ];
 
 const privacySections = [
@@ -46,12 +58,13 @@ const privacySections = [
 
 export function ProfilePage() {
   const { user, updateUser, signOut } = useAuth();
+  const { settings, updateSettings } = useNotifications();
   const [name, setName] = useState(user?.name ?? '');
   const [focus, setFocus] = useState<OnboardingFocus>(user?.focus ?? 'general');
-  const [notifications, setNotifications] = useState({ reminders: true, insights: true, community: false });
   const [openSection, setOpenSection] = useState<number | null>(0);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [notifSavedFlash, setNotifSavedFlash] = useState(false);
   const [aiConsented, setAiConsented] = useState(() => localStorage.getItem('saheli-ai-consent') === 'true');
 
   if (!user) return null;
@@ -60,6 +73,20 @@ export function ProfilePage() {
     updateUser({ name, focus, pregnancyMode: focus === 'pregnancy' });
     setSavedFlash(true);
     setTimeout(() => setSavedFlash(false), 1600);
+  };
+
+  const toggleCategory = (catKey: keyof NotificationCategories) => {
+    const nextCategories = { ...settings.categories, [catKey]: !settings.categories[catKey] };
+    updateSettings(settings.discreetMode, nextCategories);
+    setNotifSavedFlash(true);
+    setTimeout(() => setNotifSavedFlash(false), 1400);
+  };
+
+  const toggleDiscreetMode = () => {
+    const nextDiscreet = !settings.discreetMode;
+    updateSettings(nextDiscreet, settings.categories);
+    setNotifSavedFlash(true);
+    setTimeout(() => setNotifSavedFlash(false), 1400);
   };
 
   const exportData = () => {
@@ -79,7 +106,7 @@ export function ProfilePage() {
           Profile & privacy
         </motion.h1>
         <motion.p variants={fadeUp} className="mt-2 text-sand-600 dark:text-sand-300">
-          Your identity, your focus, your notifications — and your data, in plain language.
+          Your identity, discreet notifications, and granular privacy controls.
         </motion.p>
       </motion.div>
 
@@ -91,7 +118,7 @@ export function ProfilePage() {
           </h2>
           <div className="mt-4 space-y-4">
             <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} />
-            <Input label="Email" value={user.email} disabled hint="Email cannot be changed in this demo." />
+            <Input label="Email" value={user.email} disabled hint="Email cannot be changed." />
             <div>
               <p className="mb-2 flex items-center gap-2 text-sm font-600 text-sand-800 dark:text-sand-200">
                 <Focus className="h-4 w-4" /> Your focus
@@ -117,34 +144,80 @@ export function ProfilePage() {
           </div>
         </Card>
 
-        {/* Notifications */}
+        {/* Notifications & Discreet Mode */}
         <Card>
-          <h2 className="flex items-center gap-2 font-600 text-sand-900 dark:text-sand-100">
-            <Bell className="h-5 w-5 text-clay-500" /> Notifications
-          </h2>
-          <div className="mt-4 space-y-3">
-            {[
-              { key: 'reminders', label: 'Cycle and logging reminders' },
-              { key: 'insights', label: 'New insights from your data' },
-              { key: 'community', label: 'Community replies' },
-            ].map((n) => (
-              <label key={n.key} className="flex items-center justify-between">
-                <span className="text-sm text-sand-700 dark:text-sand-200">{n.label}</span>
-                <button
-                  onClick={() => setNotifications((prev) => ({ ...prev, [n.key]: !prev[n.key as keyof typeof prev] }))}
-                  className={`relative h-6 w-11 rounded-full transition-colors ${notifications[n.key as keyof typeof notifications] ? 'bg-clay-500' : 'bg-sand-300 dark:bg-sand-700'}`}
-                  role="switch"
-                  aria-checked={notifications[n.key as keyof typeof notifications]}
-                >
-                  <motion.span
-                    layout
-                    transition={{ duration: 0.2, ease: easeOut }}
-                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow ${notifications[n.key as keyof typeof notifications] ? 'left-5.5' : 'left-0.5'}`}
-                    style={{ left: notifications[n.key as keyof typeof notifications] ? '1.375rem' : '0.125rem' }}
-                  />
-                </button>
-              </label>
-            ))}
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 font-600 text-sand-900 dark:text-sand-100">
+              <Bell className="h-5 w-5 text-clay-500" /> Privacy-First Notifications
+            </h2>
+            <AnimatePresence>
+              {notifSavedFlash && (
+                <motion.span initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="text-xs font-600 text-success">
+                  Preferences updated
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Discreet Notification Mode */}
+          <div className="mt-4 rounded-xl border border-clay-200/60 bg-clay-50/50 p-4 dark:border-clay-700/60 dark:bg-clay-950/20">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-clay-100 text-clay-600 dark:bg-clay-800/60 dark:text-clay-200">
+                  <EyeOff className="h-5 w-5" />
+                </span>
+                <div>
+                  <h3 className="text-sm font-600 text-sand-900 dark:text-sand-100">Discreet Preview Mode</h3>
+                  <p className="mt-0.5 text-xs text-sand-600 dark:text-sand-400">
+                    Replaces sensitive lock-screen text (e.g. "Period expected tomorrow") with neutral phrasing ("You have an update in Saheli") for complete privacy on shared devices.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={toggleDiscreetMode}
+                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${settings.discreetMode ? 'bg-clay-500' : 'bg-sand-300 dark:bg-sand-700'}`}
+                role="switch"
+                aria-checked={settings.discreetMode}
+              >
+                <motion.span
+                  layout
+                  transition={{ duration: 0.2, ease: easeOut }}
+                  className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow"
+                  style={{ left: settings.discreetMode ? '1.375rem' : '0.125rem' }}
+                />
+              </button>
+            </div>
+          </div>
+
+          {/* Granular Category Preferences */}
+          <div className="mt-5 space-y-4">
+            <h3 className="text-xs font-600 uppercase tracking-wider text-sand-500 dark:text-sand-400">Granular Category Preferences</h3>
+            <div className="divide-y divide-sand-200/60 dark:divide-sand-700/60">
+              {categoryLabels.map((cat) => {
+                const active = settings.categories[cat.key];
+                return (
+                  <div key={cat.key} className="flex items-center justify-between py-3">
+                    <div className="pr-4">
+                      <p className="text-sm font-600 text-sand-800 dark:text-sand-200">{cat.title}</p>
+                      <p className="text-xs text-sand-500 dark:text-sand-400">{cat.desc}</p>
+                    </div>
+                    <button
+                      onClick={() => toggleCategory(cat.key)}
+                      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${active ? 'bg-clay-500' : 'bg-sand-300 dark:bg-sand-700'}`}
+                      role="switch"
+                      aria-checked={active}
+                    >
+                      <motion.span
+                        layout
+                        transition={{ duration: 0.2, ease: easeOut }}
+                        className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow"
+                        style={{ left: active ? '1.375rem' : '0.125rem' }}
+                      />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </Card>
 

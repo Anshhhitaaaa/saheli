@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Send, Heart, Shield, Flag, X, TrendingUp } from 'lucide-react';
 import { Card } from '../components/common/Card';
@@ -8,6 +8,7 @@ import { Disclaimer } from '../components/common/Disclaimer';
 import { communityPosts, type CommunityPost, type CommunityPost as Post } from '../mock/community';
 import { communityInsights } from '../mock/communityInsights';
 import { fadeUp, staggerContainer, easeOut } from '../animations/variants';
+import { api } from '../services/api';
 
 const topics = ['all', 'periods', 'pcos', 'fertility', 'pregnancy', 'menopause', 'general'] as const;
 
@@ -19,14 +20,23 @@ export function CommunityPage() {
   const [reporting, setReporting] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState('');
 
+  useEffect(() => {
+    api.community.getPosts().then((res) => {
+      if (res.posts && res.posts.length > 0) {
+        setPosts(res.posts);
+      }
+    }).catch(() => {});
+  }, []);
+
   const filtered = topic === 'all' ? posts : posts.filter((p) => p.topic === topic);
 
-  const submit = () => {
+  const submit = async () => {
     if (!draft.title.trim() || !draft.body.trim()) return;
+    const authorName = 'you_' + Math.floor(Math.random() * 99);
     const newPost: Post = {
       id: 'p' + Date.now(),
       topic: 'general',
-      author: 'you_' + Math.floor(Math.random() * 99),
+      author: authorName,
       title: draft.title,
       body: draft.body,
       replies: [],
@@ -35,6 +45,16 @@ export function CommunityPage() {
     setPosts((prev) => [newPost, ...prev]);
     setDraft({ title: '', body: '' });
     setComposing(false);
+
+    try {
+      const res = await api.community.createPost({
+        topic: 'general',
+        author: authorName,
+        title: newPost.title,
+        body: newPost.body,
+      });
+      if (res.posts) setPosts(res.posts);
+    } catch {}
   };
 
   return (

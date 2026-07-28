@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Pill, Clock, Check, X, Bell } from 'lucide-react';
 import { Card } from '../components/common/Card';
@@ -8,14 +8,27 @@ import { Disclaimer } from '../components/common/Disclaimer';
 import { Modal } from '../components/common/Modal';
 import { medications as initialMeds, medicationTypes, type Medication } from '../mock/medications';
 import { fadeUp, staggerContainer, easeOut } from '../animations/variants';
+import { useAuth } from '../context/AuthContext';
+import { api } from '../services/api';
 
 export function MedsTrackerPage() {
+  const { user } = useAuth();
   const [meds, setMeds] = useState<Medication[]>(initialMeds);
   const [adding, setAdding] = useState(false);
   const [takenToday, setTakenToday] = useState<Record<string, boolean>>({ m1: true, m2: true });
   const [form, setForm] = useState({ name: '', dose: '', schedule: '', type: 'supplement' as Medication['type'], notes: '' });
 
-  const add = () => {
+  useEffect(() => {
+    if (user?.email) {
+      api.medications.get(user.email).then((res) => {
+        if (res.meds && res.meds.length > 0) {
+          setMeds(res.meds);
+        }
+      }).catch(() => {});
+    }
+  }, [user?.email]);
+
+  const add = async () => {
     if (!form.name.trim()) return;
     const m: Medication = {
       id: 'm' + Date.now(),
@@ -27,13 +40,33 @@ export function MedsTrackerPage() {
       startedAt: new Date().toISOString().slice(0, 10),
       notes: form.notes.trim() || undefined,
     };
+
     setMeds((prev) => [...prev, m]);
     setForm({ name: '', dose: '', schedule: '', type: 'supplement', notes: '' });
     setAdding(false);
+
+    if (user?.email) {
+      try {
+        const res = await api.medications.create(user.email, {
+          name: m.name,
+          type: m.type,
+          dose: m.dose,
+          schedule: m.schedule,
+          notes: m.notes,
+        });
+        if (res.meds) setMeds(res.meds);
+      } catch {}
+    }
   };
 
-  const toggleActive = (id: string) =>
-    setMeds((prev) => prev.map((m) => (m.id === id ? { ...m, active: !m.active } : m)));
+  const toggleActive = (id: string) => {
+    const updatedMeds = meds.map((m) => (m.id === id ? { ...m, active: !m.active } : m));
+    setMeds(updatedMeds);
+    const target = updatedMeds.find((m) => m.id === id);
+    if (user?.email && target) {
+      api.medications.update(user.email, id, { active: target.active }).catch(() => {});
+    }
+  };
 
   return (
     <div className="mx-auto max-w-4xl">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Check } from 'lucide-react';
@@ -10,10 +10,12 @@ import {
   symptomOptions,
   redFlagSymptoms,
   moodOptions,
-  symptomHistory,
+  symptomHistory as mockSymptomHistory,
   type SymptomEntry,
 } from '../mock/symptoms';
 import { fadeUp, staggerContainer, easeOut } from '../animations/variants';
+import { useAuth } from '../context/AuthContext';
+import { api } from '../services/api';
 
 const moodEmoji: Record<string, string> = {
   calm: '🌿',
@@ -25,12 +27,25 @@ const moodEmoji: Record<string, string> = {
 };
 
 export function SymptomsPage() {
+  const { user } = useAuth();
   const [selected, setSelected] = useState<string[]>([]);
   const [mood, setMood] = useState<SymptomEntry['mood']>('calm');
   const [severity, setSeverity] = useState<1 | 2 | 3 | 4 | 5>(3);
   const [note, setNote] = useState('');
-  const [history, setHistory] = useState<SymptomEntry[]>(symptomHistory);
+  const [history, setHistory] = useState<SymptomEntry[]>([]);
   const [justSaved, setJustSaved] = useState(false);
+
+  useEffect(() => {
+    if (user?.email) {
+      api.symptoms.get(user.email).then((res) => {
+        if (res.logs && res.logs.length > 0) {
+          setHistory(res.logs);
+        } else {
+          setHistory([]);
+        }
+      }).catch(() => {});
+    }
+  }, [user?.email]);
 
   const hasRedFlag = selected.some((s) => redFlagSymptoms.includes(s));
 
@@ -40,22 +55,26 @@ export function SymptomsPage() {
     );
 
   const save = () => {
+    const todayDate = new Date().toISOString().slice(0, 10);
     const entry: SymptomEntry = {
       id: 's' + Date.now(),
-      date: new Date().toISOString().slice(0, 10),
-      mood,
+      date: todayDate,
       symptoms: selected,
       severity,
-      note: note.trim() || undefined,
-      redFlag: hasRedFlag,
+      mood,
+      notes: note.trim() || undefined,
     };
     setHistory((prev) => [entry, ...prev]);
     setJustSaved(true);
-    setTimeout(() => setJustSaved(false), 1800);
+    setTimeout(() => setJustSaved(false), 1600);
     setSelected([]);
     setNote('');
     setSeverity(3);
     setMood('calm');
+
+    if (user?.email) {
+      api.symptoms.save(user.email, todayDate, selected, note).catch(() => {});
+    }
   };
 
   return (

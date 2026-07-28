@@ -6,10 +6,11 @@ import { Button } from '../components/common/Button';
 import { Disclaimer } from '../components/common/Disclaimer';
 import { useAuth } from '../context/AuthContext';
 import { getCycleHistory } from '../mock/cycle';
-import { getCycleStats, type CycleStats } from '../services/cycleService';
+import { computeStats, type CycleStats } from '../services/cycleService';
 import { staggerContainer, fadeUp, easeOut } from '../animations/variants';
 import type { FlowLevel } from '../mock/cycle';
 import { fertilityEntries as initialFertility, mucusLabels, mucusOptions, type FertilityEntry } from '../mock/fertility';
+import { api } from '../services/api';
 
 const flowColors: Record<FlowLevel, string> = {
   none: 'bg-transparent',
@@ -36,24 +37,17 @@ export function TrackerPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [pendingFlow, setPendingFlow] = useState<FlowLevel>('medium');
   const [justLogged, setJustLogged] = useState(false);
-  const [stats, setStats] = useState<CycleStats | null>(null);
+  const [stats, setStats] = useState<CycleStats | null>(() => computeStats(user ? getCycleHistory(user.email) : []));
   const [tab, setTab] = useState<'flow' | 'fertility'>('flow');
   const [fertility, setFertility] = useState<FertilityEntry[]>(initialFertility);
   const [bbtInput, setBbtInput] = useState('');
   const [mucusInput, setMucusInput] = useState<NonNullable<FertilityEntry['mucus']>>('dry');
   const [opkInput, setOpkInput] = useState<'negative' | 'positive'>('negative');
 
+  // Recalculate stats live whenever history changes
   useEffect(() => {
-    let active = true;
-    (async () => {
-      if (!user) return;
-      const s = await getCycleStats(user.email);
-      if (active) setStats(s);
-    })();
-    return () => {
-      active = false;
-    };
-  }, [user, history]);
+    setStats(computeStats(history));
+  }, [history]);
 
   const entriesByDate = useMemo(() => {
     const map = new Map<string, FlowLevel>();
@@ -79,16 +73,32 @@ export function TrackerPage() {
   const goNext = () => setCursor(new Date(year, month + 1, 1));
   const today = new Date().toISOString().slice(0, 10);
 
+  useEffect(() => {
+    if (user?.email) {
+      api.cycle.get(user.email).then((res) => {
+        if (res.logs) {
+          setHistory(res.logs);
+        }
+      }).catch(() => {});
+    }
+  }, [user?.email]);
+
   const logFlow = () => {
     if (!selected) return;
+    const targetDate = selected;
+    const targetFlow = pendingFlow;
     setHistory((prev) => {
-      const exists = prev.find((e) => e.date === selected);
-      if (exists) return prev.map((e) => (e.date === selected ? { ...e, flow: pendingFlow } : e));
-      return [...prev, { date: selected, flow: pendingFlow }];
+      const exists = prev.find((e) => e.date === targetDate);
+      if (exists) return prev.map((e) => (e.date === targetDate ? { ...e, flow: targetFlow } : e));
+      return [...prev, { date: targetDate, flow: targetFlow }];
     });
     setJustLogged(true);
     setTimeout(() => setJustLogged(false), 1600);
     setSelected(null);
+
+    if (user?.email) {
+      api.cycle.save(user.email, targetDate, targetFlow).catch(() => {});
+    }
   };
 
   const todayStr = new Date().toISOString().slice(0, 10);

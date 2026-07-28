@@ -48,8 +48,8 @@ export function SignupPage() {
       } else {
         navigate('/dashboard');
       }
-    } catch {
-      setErrors({ email: 'Could not create account. Try again.' });
+    } catch (err: any) {
+      setErrors({ email: err.message || 'Could not create account. Try again.' });
     } finally {
       setLoading(false);
     }

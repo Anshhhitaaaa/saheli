@@ -1,3 +1,6 @@
+import { api } from './api';
+import { articles, type Article } from '../mock/articles';
+
 export interface AssistantSource {
   topic: string;
   source: string;
@@ -18,9 +21,7 @@ export interface AssistantConversation {
   messages: AssistantMessage[];
 }
 
-const USE_MOCK = true;
-
-// Red-flag patterns — checked on user input AND draft response.
+// Emergency / Red-flag patterns — triggers seek-care banner
 const RED_FLAG_PATTERNS = [
   'severe pain',
   'heavy bleeding',
@@ -36,6 +37,8 @@ const RED_FLAG_PATTERNS = [
   'pregnancy and bleeding',
   'bleeding during pregnancy',
   'severe headache during pregnancy',
+  'high fever',
+  'sudden severe cramps',
 ];
 
 export function isRedFlag(text: string): boolean {
@@ -43,74 +46,148 @@ export function isRedFlag(text: string): boolean {
   return RED_FLAG_PATTERNS.some((p) => lower.includes(p));
 }
 
-// Mock knowledge base — grounded answers per topic, never diagnostic.
-const mockAnswers: { keywords: string[]; answer: string; sources: AssistantSource[] }[] = [
-  {
-    keywords: ['pcos', 'irregular', 'polycystic'],
-    answer:
-      "PCOS is a common hormonal pattern, not a single disease. It often shows up as irregular or infrequent periods, higher androgen levels, and many small follicles on an ultrasound — though not everyone has all three. There is no single test that confirms it; your clinician will use your history, an exam, blood tests, and sometimes an ultrasound together. Management is tailored to what matters most to you — cycle regularity, skin changes, fertility, or long-term metabolic health — and is something to build with your doctor rather than self-diagnose.",
-    sources: [
-      { topic: 'PCOS basics', source: 'Saheli Medical Review Board', articleId: 'pcos-basics' },
-    ],
-  },
-  {
-    keywords: ['fertility', 'fertile', 'conceive', 'trying'],
-    answer:
-      "Your fertile window is the roughly six days each cycle when pregnancy is possible — the five days before ovulation and the day of ovulation itself. Combining signals (cycle length, cervical mucus changes, and optionally ovulation predictor kits) is more reliable than any single one. If you have been trying for 12 months — or 6 months if you are over 35 — it is reasonable to bring this up with your doctor. Timing is one factor among many, and a clinician can help you see the full picture.",
-    sources: [
-      { topic: 'Fertile window', source: 'Saheli Medical Review Board', articleId: 'fertility-window' },
-    ],
-  },
-  {
-    keywords: ['pregnan', 'first trimester', 'nausea', 'morning sickness'],
-    answer:
-      "In the first trimester, hormone levels rise quickly, which can bring fatigue, nausea, and tender breasts — all common and usually manageable. Your first prenatal visit typically happens between weeks 8 and 12. Some symptoms deserve a prompt call rather than waiting for the next visit: severe abdominal pain, heavy bleeding, or feeling faint. These are not reasons to panic, but they are reasons to reach out the same day.",
-    sources: [
-      { topic: 'First trimester', source: 'Saheli Medical Review Board', articleId: 'first-trimester-changes' },
-    ],
-  },
-  {
-    keywords: ['menopause', 'perimenopause', 'hot flash', 'hot flash'],
-    answer:
-      "Perimenopause is the years leading up to menopause, when your ovaries gradually produce less estrogen. It can begin in your 40s, sometimes earlier, and typically lasts 4 to 8 years. Cycles often change — shorter, longer, heavier, lighter, or skipped — and sleep, mood, and temperature regulation can shift. Tracking your cycle, sleep, and symptoms gives your doctor useful information. If bleeding becomes very heavy, very frequent, or returns after a year without a period, bring it up promptly.",
-    sources: [
-      { topic: 'Perimenopause', source: 'Saheli Medical Review Board', articleId: 'perimenopause-101' },
-    ],
-  },
-  {
-    keywords: ['period', 'cycle', 'menstrual', 'cramp', 'bleeding'],
-    answer:
-      "Most cycle variation is normal. Cycles between 21 and 35 days are typical, and a few days of variation month to month is common. Reasons to book a non-urgent visit with your doctor include periods consistently closer than 21 days or farther than 35 days apart, bleeding that lasts more than 7 days, or bleeding between periods. Reasons to seek care the same day include severe pain that is not helped by usual measures, very heavy bleeding, or fainting — not emergencies to panic about, but reasons to reach out promptly.",
-    sources: [
-      { topic: 'Understanding your cycle', source: 'Saheli Medical Review Board', articleId: 'understanding-your-cycle' },
-      { topic: 'When to see a doctor', source: 'Saheli Medical Review Board', articleId: 'when-to-see-a-doctor' },
-    ],
-  },
-  {
-    keywords: ['mood', 'sad', 'anxious', 'irritable', 'pmdd', 'pms'],
-    answer:
-      "It is common to notice mood changes across your cycle. In the days before a period, falling estrogen and progesterone can bring irritability, low mood, or tearfulness — usually mild and passing. When mood changes are severe enough to disrupt relationships, work, or daily life, and when they recur predictably before each period, it is worth mentioning to your doctor. There is a spectrum between typical premenstrual changes and PMDD, and a clinician can help you tell the difference. Tracking mood and cycle together is what makes the pattern visible.",
-    sources: [
-      { topic: 'Mood and your cycle', source: 'Saheli Medical Review Board', articleId: 'mood-and-your-cycle' },
-    ],
-  },
-];
+// --- RAG (Retrieval-Augmented Generation) Engine ---
+// Searches the medical articles database in src/mock/articles.ts to retrieve relevant knowledge.
+function retrieveArticles(query: string): { article: Article; score: number }[] {
+  const words = query
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '')
+    .split(/\s+/)
+    .filter((w) => w.length > 2);
 
-const fallbackAnswer =
-  "That is a great question to bring to your doctor, because the specifics of your situation matter. In general, the patterns we see in women's health — cycle changes, mood shifts, fertility timing — are shaped by many factors and look different from person to person. Tracking what you notice and bringing those notes to your clinician is one of the most useful things you can do. I can share general information from our reviewed library if you tell me a bit more about what you are noticing.";
+  if (words.length === 0) return [];
 
-const fallbackSources: AssistantSource[] = [
-  { topic: 'Understanding your cycle', source: 'Saheli Medical Review Board', articleId: 'understanding-your-cycle' },
-];
+  return articles
+    .map((article) => {
+      let score = 0;
+      const titleLower = article.title.toLowerCase();
+      const excerptLower = article.excerpt.toLowerCase();
+      const topicLower = article.topic.toLowerCase();
+      const fullText = [article.title, article.excerpt, article.topic, ...article.takeaways, ...article.body].join(' ').toLowerCase();
 
-function pickAnswer(message: string): { answer: string; sources: AssistantSource[] } {
-  const lower = message.toLowerCase();
-  for (const entry of mockAnswers) {
-    if (entry.keywords.some((k) => lower.includes(k))) {
-      return { answer: entry.answer, sources: entry.sources };
+      for (const word of words) {
+        if (titleLower.includes(word)) score += 6;
+        if (topicLower.includes(word)) score += 5;
+        if (excerptLower.includes(word)) score += 3;
+        const occurrences = fullText.split(word).length - 1;
+        score += Math.min(occurrences, 4);
+      }
+      return { article, score };
+    })
+    .filter((item) => item.score > 1)
+    .sort((a, b) => b.score - a.score);
+}
+
+// Core RAG Answer Generator
+function generateRAGAnswer(message: string): { answer: string; sources: AssistantSource[] } {
+  const lower = message.toLowerCase().trim();
+
+  // Handle specific nutrition & eating queries ("what should i eat", "food", "diet")
+  const isNutritionQuery = lower.includes('eat') || lower.includes('food') || lower.includes('diet') || lower.includes('nutrition') || lower.includes('meal');
+  if (isNutritionQuery) {
+    const pcosMatched = lower.includes('pcos');
+    const pregnancyMatched = lower.includes('pregnant') || lower.includes('pregnancy');
+
+    if (pcosMatched) {
+      return {
+        answer: `For a PCOS-friendly diet, focusing on blood sugar stability and reducing inflammation is key:
+
+1. Pair Carbohydrates with Protein: Combine complex carbs (oats, quinoa, sweet potatoes) with lean protein (eggs, chicken, lentils, tofu) and healthy fats (avocado, nuts, olive oil). This prevents steep insulin spikes that trigger androgen production.
+
+2. Anti-Inflammatory Foods: Include leafy greens, berries, fatty fish (salmon, sardines), and seeds (flax, chia, pumpkin).
+
+3. Consider Specific Supplements (with your doctor's advice): Myo-Inositol (40:1 ratio with D-Chiro-Inositol), Vitamin D3, and Omega-3 fatty acids.
+
+4. Stay Hydrated & Limit Refined Sugars: Minimize sugary beverages and processed snacks to support metabolic balance.`,
+        sources: [
+          { topic: 'PCOS Nutrition & Basics', source: 'Saheli Medical Review Board', articleId: 'pcos-basics' },
+        ],
+      };
     }
+
+    if (pregnancyMatched) {
+      return {
+        answer: `During pregnancy, your nutritional needs focus on supporting tissue growth and soothing common early symptoms:
+
+1. Key Nutrients:
+   - Folate / Folic Acid: Essential for neural tube development (found in dark leafy greens, lentils, and prenatals).
+   - Iron: Supports blood volume expansion (found in lean meats, beans, spinach paired with Vitamin C).
+   - Calcium & Vitamin D: Supports fetal bone growth.
+
+2. Soothing Nausea:
+   - Eat small, frequent meals rather than large ones to keep blood sugar stable.
+   - Ginger tea, peppermint, and dry crackers before getting out of bed can soothe early morning nausea.
+
+3. Hydration: Drink 8 to 10 glasses of fluids daily (water, coconut water, clear broths).`,
+        sources: [
+          { topic: 'First Trimester Care', source: 'Saheli Medical Review Board', articleId: 'first-trimester-changes' },
+        ],
+      };
+    }
+
+    return {
+      answer: `Nutrition tailored to your menstrual cycle helps support energy, hormone production, and mood:
+
+1. Follicular Phase (Days 1 to 13): Focus on fresh, light foods — sprouted grains, fermented foods (yogurt, kimchi), light protein, and vibrant vegetables.
+
+2. Ovulatory Phase (around Day 14): Include anti-inflammatory berries, zinc-rich seeds (pumpkin, sesame), raw vegetables, and stay well hydrated.
+
+3. Luteal Phase (Days 15 to 28): Your metabolism speeds up slightly. Eat complex carbs (sweet potatoes, brown rice, oats) and magnesium-rich dark chocolate or spinach to soothe premenstrual cravings.
+
+4. Menstrual Phase (Period): Replenish iron lost during bleeding with lentils, beans, dark leafy greens, and warm soups.`,
+      sources: [
+        { topic: 'Understanding Your Cycle', source: 'Saheli Medical Review Board', articleId: 'understanding-your-cycle' },
+      ],
+    };
   }
-  return { answer: fallbackAnswer, sources: fallbackSources };
+
+  // Perform RAG retrieval against articles database
+  const matches = retrieveArticles(message);
+
+  if (matches.length > 0) {
+    const primary = matches[0].article;
+    const secondary = matches[1]?.article;
+
+    const sources: AssistantSource[] = [
+      { topic: primary.title, source: primary.source, articleId: primary.id },
+    ];
+    if (secondary) {
+      sources.push({ topic: secondary.title, source: secondary.source, articleId: secondary.id });
+    }
+
+    // Synthesize RAG answer from retrieved medical article body and takeaways
+    const mainTakeaways = primary.takeaways.map((t) => `- ${t}`).join('\n');
+    const firstParagraph = primary.body[0] || primary.excerpt;
+    const secondParagraph = primary.body[1] || '';
+
+    return {
+      answer: `${firstParagraph}
+
+${secondParagraph}
+
+Key Highlights:
+${mainTakeaways}`,
+      sources,
+    };
+  }
+
+  // Direct contextual answer for any other question
+  const topicTitle = message.trim();
+  return {
+    answer: `Here is clear health information regarding "${topicTitle}":
+
+1. Biological Context: Your body's physiological responses — including energy, digestion, mood, skin, and sleep — are continually influenced by shifting hormonal levels across your cycle.
+
+2. What You Can Track in Saheli:
+   - Log period flow intensity (spotting, light, medium, heavy).
+   - Track physical symptoms (cramps, fatigue, skin changes) and mood.
+   - Record fertility signs (basal body temperature, cervical mucus).
+
+3. When to Consult a Doctor: If you experience new or persistent symptoms, sharing your logged cycle history with your healthcare provider is the best step for personalized care.`,
+    sources: [
+      { topic: 'Saheli Health Library', source: 'Saheli Medical Review Board', articleId: 'understanding-your-cycle' },
+    ],
+  };
 }
 
 export interface StreamHandlers {
@@ -121,31 +198,40 @@ export interface StreamHandlers {
 }
 
 /**
- * Sends a message to the assistant and streams the response.
- * Mock implementation simulates token-by-token streaming.
+ * Sends a message to the assistant and streams the RAG response token by token.
  */
 export async function streamAssistantMessage(
   conversationId: string,
   message: string,
   handlers: StreamHandlers,
+  email?: string,
 ): Promise<void> {
-  if (!USE_MOCK) {
-    // Real backend wiring would go here — POST /api/assistant/message, read SSE stream.
-    // For now the mock is the only path.
+  await new Promise((r) => setTimeout(r, 200));
+
+  let answer = '';
+  let sources: AssistantSource[] = [];
+
+  try {
+    const res = await api.assistant.chat(email || 'user@saheli.app', message, conversationId);
+    if (res.answer) {
+      answer = res.answer;
+      sources = res.sources || [];
+    }
+  } catch {
+    const ragRes = generateRAGAnswer(message);
+    answer = ragRes.answer;
+    sources = ragRes.sources;
   }
 
-  await new Promise((r) => setTimeout(r, 350)); // "thinking" delay
-
-  const { answer, sources } = pickAnswer(message);
   const flag = isRedFlag(message) || isRedFlag(answer);
+  if (flag) {
+    handlers.onSafetyFlag();
+  }
 
-  if (flag) handlers.onSafetyFlag();
-
-  // Token-by-token streaming — chunk by words for a natural cadence.
-  const tokens = answer.match(/\S+\s*/g) ?? [answer];
-  for (const tok of tokens) {
-    await new Promise((r) => setTimeout(r, 35));
-    handlers.onToken(tok);
+  const words = answer.match(/\S+\s*/g) ?? [answer];
+  for (const word of words) {
+    await new Promise((r) => setTimeout(r, 20));
+    handlers.onToken(word);
   }
 
   handlers.onSources(sources);
@@ -153,38 +239,38 @@ export async function streamAssistantMessage(
 }
 
 export const suggestedQuestions = [
+  'What should I eat for my cycle?',
   'What counts as an irregular period?',
-  'How do I know when I am ovulating?',
-  'Is my fatigue related to my cycle?',
-  'What should I track for PCOS?',
-  'When does perimenopause usually start?',
+  'Why am I so tired during my period?',
+  'What causes menstrual headaches?',
+  'How do I track cervical mucus for fertility?',
 ];
 
 export const suggestedQuestionsByFocus: Record<string, string[]> = {
   pcos: [
-    'What should I track for PCOS?',
+    'What should I eat for PCOS?',
     'Is my cycle length normal for PCOS?',
-    'What lifestyle changes help PCOS?',
+    'What supplements help with PCOS?',
   ],
   fertility: [
     'How do I know when I am ovulating?',
     'What is my fertile window?',
-    'When should I see a fertility specialist?',
+    'How do I track cervical mucus and BBT?',
   ],
   pregnancy: [
+    'What should I eat during pregnancy?',
     'What first-trimester symptoms are normal?',
     'When should I call my doctor in pregnancy?',
-    'What should I track during pregnancy?',
   ],
   menopause: [
     'When does perimenopause usually start?',
-    'Are hot flashes normal?',
-    'When should I see a doctor about menopause?',
+    'Are hot flashes and night sweats normal?',
+    'How does HRT work for menopause?',
   ],
   periods: [
+    'What should I eat on my period?',
     'What counts as an irregular period?',
     'Why is my mood different before my period?',
-    'When should I see a doctor about my period?',
   ],
   general: suggestedQuestions,
 };

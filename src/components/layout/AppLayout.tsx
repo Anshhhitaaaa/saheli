@@ -17,11 +17,14 @@ import {
   Pill,
   Share2,
   FileText,
-  GraduationCap,
+  EyeOff,
+  CheckCheck,
+  ShieldAlert,
 } from 'lucide-react';
 import { Logo } from '../common/Logo';
 import { ThemeToggle } from '../common/ThemeToggle';
 import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { pageTransition, drawerTransition, backdropTransition } from '../../animations/variants';
 
 interface NavItem {
@@ -61,9 +64,12 @@ const mobileItems: NavItem[] = [
 
 export function AppLayout() {
   const { user, loading, signOut } = useAuth();
+  const { notifications, unreadCount, settings, markAsRead, markAllAsRead, updateSettings } = useNotifications();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [notifDrawerOpen, setNotifDrawerOpen] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
   if (loading) {
     return (
@@ -80,6 +86,11 @@ export function AppLayout() {
     signOut();
     navigate('/');
   };
+
+  const filteredNotifs = notifications.filter((n) => {
+    if (filter === 'unread') return !n.read;
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-sand-50 dark:bg-sand-900">
@@ -143,10 +154,15 @@ export function AppLayout() {
         <div className="flex items-center gap-1">
           <button
             aria-label="Notifications"
+            onClick={() => setNotifDrawerOpen(true)}
             className="relative rounded-full p-2 text-sand-600 hover:bg-sand-100 dark:text-sand-300 dark:hover:bg-sand-800"
           >
             <Bell className="h-5 w-5" />
-            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-clay-500" />
+            {unreadCount > 0 && (
+              <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-clay-500 text-[10px] font-700 text-white">
+                {unreadCount}
+              </span>
+            )}
           </button>
           <ThemeToggle />
           <button
@@ -158,6 +174,205 @@ export function AppLayout() {
           </button>
         </div>
       </header>
+
+      {/* Main Container */}
+      <div className="md:pl-64">
+        {/* Desktop top bar */}
+        <header className="sticky top-0 z-20 hidden h-16 items-center justify-between border-b border-sand-200/60 bg-sand-50/80 px-6 backdrop-blur-md dark:border-sand-700/60 dark:bg-sand-900/80 md:flex">
+          <p className="text-sm text-sand-500 dark:text-sand-400">
+            {greeting()}, {user.name.split(' ')[0]}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              aria-label="Notifications"
+              onClick={() => setNotifDrawerOpen(true)}
+              className="relative flex items-center gap-2 rounded-xl border border-sand-200 px-3 py-1.5 text-xs font-600 text-sand-700 hover:bg-sand-100 dark:border-sand-700 dark:text-sand-200 dark:hover:bg-sand-800"
+            >
+              <Bell className="h-4 w-4 text-clay-500" />
+              <span>Inbox</span>
+              {unreadCount > 0 && (
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-clay-500 text-[10px] font-700 text-white">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+            <ThemeToggle />
+          </div>
+        </header>
+
+        <main className="px-4 py-6 pb-24 sm:px-6 md:px-8 md:pb-10">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              variants={pageTransition}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </div>
+
+      {/* Slide-over Notification Inbox Drawer */}
+      <AnimatePresence>
+        {notifDrawerOpen && (
+          <div className="fixed inset-0 z-50 overflow-hidden">
+            <motion.div
+              variants={backdropTransition}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="absolute inset-0 bg-sand-900/40 backdrop-blur-sm"
+              onClick={() => setNotifDrawerOpen(false)}
+            />
+            <motion.aside
+              variants={drawerTransition}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col bg-white shadow-2xl dark:bg-sand-800"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-sand-200/60 px-5 py-4 dark:border-sand-700/60">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-clay-100 text-clay-600 dark:bg-clay-800/60 dark:text-clay-200">
+                    <Bell className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <h2 className="font-display text-lg font-600 text-sand-900 dark:text-sand-100">Notifications</h2>
+                    <p className="text-xs text-sand-500 dark:text-sand-400">
+                      {unreadCount > 0 ? `${unreadCount} unread update${unreadCount > 1 ? 's' : ''}` : 'All caught up'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setNotifDrawerOpen(false)}
+                  className="rounded-lg p-1.5 text-sand-500 hover:bg-sand-100 dark:hover:bg-sand-700"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Controls bar: Filter & Discreet Mode Toggle */}
+              <div className="flex items-center justify-between border-b border-sand-200/60 bg-sand-50 px-5 py-2.5 dark:border-sand-700/60 dark:bg-sand-900/50">
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setFilter('all')}
+                    className={`rounded-lg px-2.5 py-1 text-xs font-600 transition-colors ${
+                      filter === 'all'
+                        ? 'bg-clay-500 text-white'
+                        : 'text-sand-600 hover:bg-sand-200/60 dark:text-sand-300 dark:hover:bg-sand-700'
+                    }`}
+                  >
+                    All ({notifications.length})
+                  </button>
+                  <button
+                    onClick={() => setFilter('unread')}
+                    className={`rounded-lg px-2.5 py-1 text-xs font-600 transition-colors ${
+                      filter === 'unread'
+                        ? 'bg-clay-500 text-white'
+                        : 'text-sand-600 hover:bg-sand-200/60 dark:text-sand-300 dark:hover:bg-sand-700'
+                    }`}
+                  >
+                    Unread ({unreadCount})
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => updateSettings(!settings.discreetMode, settings.categories)}
+                    title={settings.discreetMode ? 'Discreet Mode Active (Lock-screen privacy on)' : 'Explicit Mode Active'}
+                    className={`flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-600 transition-colors ${
+                      settings.discreetMode
+                        ? 'bg-clay-100 text-clay-700 dark:bg-clay-800/60 dark:text-clay-200'
+                        : 'bg-sand-200 text-sand-700 dark:bg-sand-700 dark:text-sand-300'
+                    }`}
+                  >
+                    <EyeOff className="h-3.5 w-3.5" />
+                    <span>{settings.discreetMode ? 'Discreet' : 'Explicit'}</span>
+                  </button>
+
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={markAllAsRead}
+                      className="flex items-center gap-1 text-xs font-600 text-sand-600 hover:text-clay-600 dark:text-sand-400 dark:hover:text-clay-300"
+                    >
+                      <CheckCheck className="h-3.5 w-3.5" />
+                      <span>Read all</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Notification List */}
+              <div className="flex-1 space-y-3 overflow-y-auto p-4">
+                {filteredNotifs.length === 0 ? (
+                  <div className="flex h-48 flex-col items-center justify-center text-center">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-sand-100 text-sand-400 dark:bg-sand-700 dark:text-sand-300">
+                      <Bell className="h-6 w-6" />
+                    </span>
+                    <p className="mt-3 text-sm font-600 text-sand-800 dark:text-sand-100">No notifications here</p>
+                    <p className="mt-1 text-xs text-sand-500 dark:text-sand-400">You are all caught up on your health updates.</p>
+                  </div>
+                ) : (
+                  filteredNotifs.map((n) => {
+                    const textToShow = settings.discreetMode ? n.discreetMessage : n.message;
+                    return (
+                      <div
+                        key={n.id}
+                        onClick={() => markAsRead(n.id)}
+                        className={`group relative cursor-pointer rounded-xl border p-3.5 transition-all ${
+                          !n.read
+                            ? 'border-clay-300/80 bg-clay-50/40 dark:border-clay-700/80 dark:bg-clay-950/20'
+                            : 'border-sand-200/60 bg-white dark:border-sand-700/60 dark:bg-sand-800/60'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-2.5">
+                            <span className="mt-0.5 flex h-2 w-2 shrink-0 rounded-full bg-clay-500 opacity-90" style={{ opacity: n.read ? 0 : 1 }} />
+                            <div>
+                              <h4 className="text-sm font-600 text-sand-900 dark:text-sand-100">{n.title}</h4>
+                              <p className="mt-1 text-xs text-sand-600 dark:text-sand-300">{textToShow}</p>
+                              <p className="mt-2 text-[10px] text-sand-400 dark:text-sand-500">
+                                {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {n.category}
+                              </p>
+                            </div>
+                          </div>
+
+                          {!n.read && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                markAsRead(n.id);
+                              }}
+                              className="text-xs text-clay-600 hover:underline dark:text-clay-300"
+                            >
+                              Dismiss
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Footer link to Profile settings */}
+              <div className="border-t border-sand-200/60 p-4 text-center dark:border-sand-700/60">
+                <Link
+                  to="/profile"
+                  onClick={() => setNotifDrawerOpen(false)}
+                  className="text-xs font-600 text-clay-600 hover:underline dark:text-clay-300"
+                >
+                  Manage notification preferences & privacy →
+                </Link>
+              </div>
+            </motion.aside>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Mobile drawer */}
       <AnimatePresence>
@@ -222,40 +437,6 @@ export function AppLayout() {
           </div>
         )}
       </AnimatePresence>
-
-      {/* Main */}
-      <div className="md:pl-64">
-        {/* Desktop top bar */}
-        <header className="sticky top-0 z-20 hidden h-16 items-center justify-between border-b border-sand-200/60 bg-sand-50/80 px-6 backdrop-blur-md dark:border-sand-700/60 dark:bg-sand-900/80 md:flex">
-          <p className="text-sm text-sand-500 dark:text-sand-400">
-            {greeting()}, {user.name.split(' ')[0]}
-          </p>
-          <div className="flex items-center gap-1">
-            <button
-              aria-label="Notifications"
-              className="relative rounded-full p-2 text-sand-600 hover:bg-sand-100 dark:text-sand-300 dark:hover:bg-sand-800"
-            >
-              <Bell className="h-5 w-5" />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-clay-500" />
-            </button>
-            <ThemeToggle />
-          </div>
-        </header>
-
-        <main className="px-4 py-6 pb-24 sm:px-6 md:px-8 md:pb-10">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={location.pathname}
-              variants={pageTransition}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-            >
-              <Outlet />
-            </motion.div>
-          </AnimatePresence>
-        </main>
-      </div>
 
       {/* Mobile bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-30 flex items-stretch justify-around border-t border-sand-200/60 bg-sand-50/95 backdrop-blur-md dark:border-sand-700/60 dark:bg-sand-900/95 md:hidden">

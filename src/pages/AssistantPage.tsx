@@ -56,28 +56,33 @@ export function AssistantPage() {
     setDraftSources([]);
     setDraftSafety(false);
 
-    await streamAssistantMessage(conversationId.current, text, {
-      onToken: (tok) => setDraft((prev) => prev + tok),
-      onSources: (srcs) => setDraftSources(srcs),
-      onSafetyFlag: () => setDraftSafety(true),
-      onDone: () => {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: 'm' + Date.now(),
-            role: 'assistant',
-            content: draftRef.current,
-            sources: draftSourcesRef.current,
-            safetyFlag: draftSafetyRef.current,
-            createdAt: new Date().toISOString(),
-          },
-        ]);
-        setDraft('');
-        setDraftSources([]);
-        setDraftSafety(false);
-        setStreaming(false);
+    await streamAssistantMessage(
+      conversationId.current,
+      text,
+      {
+        onToken: (tok) => setDraft((prev) => prev + tok),
+        onSources: (srcs) => setDraftSources(srcs),
+        onSafetyFlag: () => setDraftSafety(true),
+        onDone: () => {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: 'm' + Date.now(),
+              role: 'assistant',
+              content: draftRef.current,
+              sources: draftSourcesRef.current,
+              safetyFlag: draftSafetyRef.current,
+              createdAt: new Date().toISOString(),
+            },
+          ]);
+          setDraft('');
+          setDraftSources([]);
+          setDraftSafety(false);
+          setStreaming(false);
+        },
       },
-    });
+      user?.email,
+    );
   };
 
   // Refs to read latest values inside onDone callback

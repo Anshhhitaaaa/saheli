@@ -11,7 +11,7 @@ interface CardProps {
 }
 
 export function Card({ children, className = '', hover, scrollReveal, onClick }: CardProps) {
-  const Comp = scrollReveal ? motion.div : 'div';
+  const Comp = scrollReveal || hover ? motion.div : 'div';
   const props = scrollReveal
     ? { ...viewportFade }
     : hover

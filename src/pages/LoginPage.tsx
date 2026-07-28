@@ -27,8 +27,8 @@ export function LoginPage() {
     try {
       await signIn(email, password);
       navigate('/dashboard');
-    } catch {
-      setErrors({ password: 'Could not sign in. Try again.' });
+    } catch (err: any) {
+      setErrors({ password: err.message || 'Could not sign in. Please check your credentials.' });
     } finally {
       setLoading(false);
     }

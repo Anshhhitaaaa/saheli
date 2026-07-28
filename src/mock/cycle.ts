@@ -41,5 +41,5 @@ export const cycleHistoryByPersona: Record<string, CycleDay[]> = {
 };
 
 export function getCycleHistory(email: string): CycleDay[] {
-  return cycleHistoryByPersona[email] ?? regularHistory;
+  return cycleHistoryByPersona[email] ?? [];
 }

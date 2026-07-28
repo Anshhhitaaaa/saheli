@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { api } from '../services/api';
 
 export type OnboardingFocus =
   | 'periods'
@@ -24,8 +25,8 @@ export interface SaheliUser {
 interface AuthContextValue {
   user: SaheliUser | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (params: { name: string; email: string; password: string; focus?: OnboardingFocus }) => Promise<void>;
+  signIn: (email: string, password?: string) => Promise<void>;
+  signUp: (params: { name: string; email: string; password?: string; focus?: OnboardingFocus }) => Promise<void>;
   signOut: () => void;
   updateUser: (patch: Partial<SaheliUser>) => void;
 }
@@ -34,7 +35,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const STORAGE_KEY = 'saheli-auth';
 
-// Mock user personas — pick one based on email for demo realism.
+// Mock user personas — pick one based on email for fallback realism.
 const personas: Record<string, SaheliUser> = {
   'new@saheli.app': {
     id: 'u_new',
@@ -93,34 +94,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       loading,
-      signIn: async (email) => {
-        await new Promise((r) => setTimeout(r, 500));
-        const key = email.toLowerCase().trim();
-        const persona = personas[key] ?? {
-          id: 'u_' + Math.random().toString(36).slice(2, 8),
-          name: email.split('@')[0],
-          email: key,
-          focus: 'general' as OnboardingFocus,
-          pregnancyMode: false,
-          createdAt: new Date().toISOString(),
-        };
-        persist(persona);
+      signIn: async (email, password) => {
+        try {
+          const res = await api.auth.login(email, password);
+          persist(res.user);
+        } catch (err: any) {
+          throw new Error(err.message || 'Invalid email or password.');
+        }
       },
-      signUp: async ({ name, email, focus = 'general' }) => {
-        await new Promise((r) => setTimeout(r, 600));
-        const u: SaheliUser = {
-          id: 'u_' + Math.random().toString(36).slice(2, 8),
-          name,
-          email,
-          focus,
-          pregnancyMode: focus === 'pregnancy',
-          pregnancyWeek: focus === 'pregnancy' ? 8 : undefined,
-          createdAt: new Date().toISOString(),
-        };
-        persist(u);
+      signUp: async ({ name, email, password, focus = 'general' }) => {
+        try {
+          const res = await api.auth.signup({ name, email, password, focus });
+          persist(res.user);
+        } catch (err: any) {
+          throw new Error(err.message || 'Could not create account.');
+        }
       },
       signOut: () => persist(null),
       updateUser: (patch) => {
+        if (user) {
+          api.auth.update(user.email, patch).catch(() => {});
+        }
         setUser((prev) => {
           if (!prev) return prev;
           const next = { ...prev, ...patch };
