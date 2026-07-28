@@ -31,7 +31,7 @@ const flowLabels: Record<FlowLevel, string> = {
 const flowOrder: FlowLevel[] = ['none', 'spotting', 'light', 'medium', 'heavy'];
 
 export function TrackerPage() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const [history, setHistory] = useState(() => (user ? getCycleHistory(user.email) : []));
   const [cursor, setCursor] = useState(() => new Date());
   const [selected, setSelected] = useState<string | null>(null);
@@ -95,6 +95,10 @@ export function TrackerPage() {
     setJustLogged(true);
     setTimeout(() => setJustLogged(false), 1600);
     setSelected(null);
+
+    if (targetFlow && targetFlow !== 'none') {
+      updateUser({ lastPeriodStart: targetDate });
+    }
 
     if (user?.email) {
       api.cycle.save(user.email, targetDate, targetFlow).catch(() => {});

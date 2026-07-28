@@ -14,7 +14,8 @@ export function DashboardPage() {
   const { user } = useAuth();
   const [stats, setStats] = useState<CycleStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const isNew = !user?.lastPeriodStart;
+  const hasCycleData = Boolean(stats && stats.cycleCount > 0 && stats.currentDay !== null);
+  const isNew = !user?.lastPeriodStart && !hasCycleData;
 
   useEffect(() => {
     let active = true;

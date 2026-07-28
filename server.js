@@ -213,6 +213,12 @@ const server = http.createServer(async (req, res) => {
         { $set: { email: email.toLowerCase().trim(), date, flow, note, updatedAt: new Date().toISOString() } },
         { upsert: true }
       );
+      if (flow && flow !== 'none') {
+        await db.collection('users').updateOne(
+          { email: email.toLowerCase().trim() },
+          { $set: { lastPeriodStart: date } }
+        ).catch(() => {});
+      }
       const updated = await db.collection('cycle_logs').find({ email: email.toLowerCase().trim() }).toArray();
       return sendJSON(res, 200, { logs: updated });
     }
