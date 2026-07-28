@@ -184,6 +184,9 @@ export function DashboardPage() {
               )}
             </div>
           </div>
+        </Card>
+      </motion.div>
+
       {/* Daily Lifestyle Widgets */}
       <motion.div variants={fadeUp} initial="hidden" animate="visible" className="mt-6">
         <Card>
