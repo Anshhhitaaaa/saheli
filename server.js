@@ -400,40 +400,97 @@ const server = http.createServer(async (req, res) => {
       const cleanEmail = email.toLowerCase().trim();
       let notifs = await db.collection('user_notifications').find({ email: cleanEmail }).sort({ createdAt: -1 }).toArray();
 
-      // Seed initial discreet sample notifications if empty
+      // Seed personalized notifications tailored to user profile, focus, and tracked data
       if (notifs.length === 0) {
+        const user = await db.collection('users').findOne({ email: cleanEmail });
+        const userName = user?.name ? user.name.split(' ')[0] : 'there';
+        const focus = user?.focus || 'general';
+        const logs = await db.collection('cycle_logs').find({ email: cleanEmail }).toArray();
+        const meds = await db.collection('medications').find({ email: cleanEmail, active: true }).toArray();
+
         const sampleNotifs = [
           {
             id: 'n_1',
             email: cleanEmail,
+            category: 'account',
+            title: `Welcome to Saheli, ${userName}!`,
+            message: `Your account is configured for ${focus} tracking. Explore your companion tools and grounded AI health assistant.`,
+            discreetMessage: `Welcome to Saheli! Your account is active.`,
+            read: false,
+            createdAt: new Date().toISOString()
+          },
+        ];
+
+        if (focus === 'pcos') {
+          sampleNotifs.push({
+            id: 'n_2',
+            email: cleanEmail,
+            category: 'insights',
+            title: 'PCOS Wellness Tip',
+            message: 'Pairing protein with complex carbs helps prevent steep blood sugar spikes that trigger excess androgen production.',
+            discreetMessage: 'New wellness update in Saheli.',
+            read: false,
+            createdAt: new Date(Date.now() - 1800000).toISOString()
+          });
+        } else if (focus === 'pregnancy') {
+          sampleNotifs.push({
+            id: 'n_2',
+            email: cleanEmail,
+            category: 'pregnancy',
+            title: 'Pregnancy Milestone',
+            message: `Week ${user?.pregnancyWeek || 8} milestone and symptom guidance are ready in your Pregnancy tab.`,
+            discreetMessage: 'New milestone update in Saheli.',
+            read: false,
+            createdAt: new Date(Date.now() - 1800000).toISOString()
+          });
+        } else if (focus === 'fertility') {
+          sampleNotifs.push({
+            id: 'n_2',
+            email: cleanEmail,
+            category: 'cycle',
+            title: 'Fertile Window Insight',
+            message: 'Track your BBT and cervical mucus shifts to pinpoint your fertile window this cycle.',
+            discreetMessage: 'Cycle insight ready in Saheli.',
+            read: false,
+            createdAt: new Date(Date.now() - 1800000).toISOString()
+          });
+        } else {
+          sampleNotifs.push({
+            id: 'n_2',
+            email: cleanEmail,
             category: 'cycle',
             title: 'Cycle Update',
-            message: 'Your period is expected in 2–3 days.',
-            discreetMessage: 'You have an update in Saheli.',
+            message: logs.length > 0 ? 'Your period logs are synced. View your updated cycle predictions on your dashboard.' : 'Log your period dates on the tracker page to calculate your cycle stats.',
+            discreetMessage: 'Cycle update ready in Saheli.',
+            read: false,
+            createdAt: new Date(Date.now() - 1800000).toISOString()
+          });
+        }
+
+        if (meds.length > 0) {
+          sampleNotifs.push({
+            id: 'n_3',
+            email: cleanEmail,
+            category: 'logging',
+            title: 'Daily Medication Reminder',
+            message: `Remember to take your scheduled ${meds[0].name} (${meds[0].schedule || 'Daily'}).`,
+            discreetMessage: 'Time for your daily Saheli reminder.',
             read: false,
             createdAt: new Date(Date.now() - 3600000).toISOString()
-          },
-          {
-            id: 'n_2',
+          });
+        } else {
+          sampleNotifs.push({
+            id: 'n_3',
             email: cleanEmail,
             category: 'logging',
             title: 'Daily Check-in',
-            message: 'Want to log your symptoms or mood today?',
+            message: 'Want to log your symptoms, mood, or water intake today?',
             discreetMessage: 'Time for your daily Saheli check-in.',
-            read: false,
-            createdAt: new Date(Date.now() - 86400000).toISOString()
-          },
-          {
-            id: 'n_3',
-            email: cleanEmail,
-            category: 'insights',
-            title: 'Cycle Insights',
-            message: 'Your personalized cycle report for this month is ready to view.',
-            discreetMessage: 'New insight ready in Saheli.',
             read: true,
-            createdAt: new Date(Date.now() - 172800000).toISOString()
-          }
-        ];
+            createdAt: new Date(Date.now() - 86400000).toISOString()
+          });
+        }
+
         await db.collection('user_notifications').insertMany(sampleNotifs);
         notifs = sampleNotifs;
       }
