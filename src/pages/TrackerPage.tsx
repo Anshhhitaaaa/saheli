@@ -96,11 +96,11 @@ export function TrackerPage() {
     if (user?.email) {
       api.cycle.get(user.email).then((res) => {
         if (res.logs && res.logs.length > 0) setHistory(res.logs);
-      }).catch(() => {});
+      }).catch(() => { });
 
       api.symptoms.get(user.email).then((res) => {
         if (res.logs && res.logs.length > 0) setSymptomLogs(res.logs);
-      }).catch(() => {});
+      }).catch(() => { });
     }
   }, [user?.email]);
 
@@ -198,9 +198,9 @@ export function TrackerPage() {
 
     if (email) {
       if (editingFlow === 'none') {
-        api.cycle.delete(email, targetDate).catch(() => {});
+        api.cycle.delete(email, targetDate).catch(() => { });
       } else {
-        api.cycle.save(email, targetDate, editingFlow, editingFlowNote).catch(() => {});
+        api.cycle.save(email, targetDate, editingFlow, editingFlowNote).catch(() => { });
       }
     }
 
@@ -223,13 +223,13 @@ export function TrackerPage() {
       });
 
       if (email) {
-        api.symptoms.save(email, targetDate, editingSymptoms, editingSymptomNote, editingMood, editingSeverity).catch(() => {});
+        api.symptoms.save(email, targetDate, editingSymptoms, editingSymptomNote, editingMood, editingSeverity).catch(() => { });
       }
     } else {
       // Clear symptoms if empty
       setSymptomLogs((prev) => prev.filter((s) => s.date !== targetDate));
       if (email) {
-        api.symptoms.delete(email, targetDate).catch(() => {});
+        api.symptoms.delete(email, targetDate).catch(() => { });
       }
     }
 
@@ -246,8 +246,8 @@ export function TrackerPage() {
     setSymptomLogs((prev) => prev.filter((s) => s.date !== targetDate));
 
     if (email) {
-      api.cycle.delete(email, targetDate).catch(() => {});
-      api.symptoms.delete(email, targetDate).catch(() => {});
+      api.cycle.delete(email, targetDate).catch(() => { });
+      api.symptoms.delete(email, targetDate).catch(() => { });
     }
 
     setEditingFlow('none');
@@ -301,7 +301,7 @@ export function TrackerPage() {
             leftIcon={<Plus className="h-4 w-4" />}
             className="shadow-sm"
           >
-            + Log period start
+            Log period start
           </Button>
         </motion.div>
       </motion.div>
@@ -310,21 +310,19 @@ export function TrackerPage() {
       <div className="mt-6 inline-flex rounded-xl border border-sand-200 p-1 dark:border-sand-700">
         <button
           onClick={() => setTab('flow')}
-          className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-600 transition-colors ${
-            tab === 'flow'
+          className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-600 transition-colors ${tab === 'flow'
               ? 'bg-clay-100 text-clay-700 dark:bg-clay-800/40 dark:text-clay-200'
               : 'text-sand-500'
-          }`}
+            }`}
         >
           <Droplet className="h-4 w-4" /> Flow & Symptoms
         </button>
         <button
           onClick={() => setTab('fertility')}
-          className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-600 transition-colors ${
-            tab === 'fertility'
+          className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-600 transition-colors ${tab === 'fertility'
               ? 'bg-clay-100 text-clay-700 dark:bg-clay-800/40 dark:text-clay-200'
               : 'text-sand-500'
-          }`}
+            }`}
         >
           <Thermometer className="h-4 w-4" /> Fertility (BBT / mucus)
         </button>
@@ -583,9 +581,8 @@ export function TrackerPage() {
                                 prev.includes(s) ? prev.filter((item) => item !== s) : [...prev, s],
                               )
                             }
-                            className={`chip text-xs ${active ? 'chip-active' : ''} ${
-                              isRed ? 'border-warning/40 text-warning' : ''
-                            }`}
+                            className={`chip text-xs ${active ? 'chip-active' : ''} ${isRed ? 'border-warning/40 text-warning' : ''
+                              }`}
                           >
                             {s}
                           </button>
