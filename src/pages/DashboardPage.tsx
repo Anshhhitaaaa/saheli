@@ -136,13 +136,12 @@ export function DashboardPage() {
                 <p className="mt-1.5 text-sm text-sand-600 dark:text-sand-400">
                   {isNew
                     ? 'A few days of tracking is all it takes to start seeing patterns.'
-                    : `Average cycle ${stats?.avgLength ?? '—'} days · next period around ${
-                        stats?.nextPredictedStart ?? '—'
-                      }`}
+                    : `Average cycle ${stats?.avgLength ?? '—'} days · next period around ${stats?.nextPredictedStart ?? '—'
+                    }`}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Button size="sm" onClick={() => setLogModalOpen(true)} leftIcon={<Plus className="h-4 w-4" />}>
-                    + Log period start
+                    Log period start
                   </Button>
                   <Link to="/tracker/symptoms">
                     <Button variant="outline" size="sm">
@@ -222,11 +221,10 @@ export function DashboardPage() {
                   <button
                     key={num}
                     onClick={() => handleWater(num)}
-                    className={`flex h-7 flex-1 items-center justify-center rounded-lg transition-all ${
-                      num <= waterGlasses
+                    className={`flex h-7 flex-1 items-center justify-center rounded-lg transition-all ${num <= waterGlasses
                         ? 'bg-clay-500 text-white shadow-sm'
                         : 'bg-sand-100 text-sand-400 hover:bg-sand-200 dark:bg-sand-800'
-                    }`}
+                      }`}
                     title={`Glass ${num}`}
                   >
                     <Droplet className="h-3.5 w-3.5" />
