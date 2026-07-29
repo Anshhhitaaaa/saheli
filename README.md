@@ -13,40 +13,49 @@ Saheli is designed to provide actionable, evidence-based, and empathetic health 
 ## ✨ Core Features & Modules
 
 ### 🩸 1. Intelligent Cycle & Period Tracking
-- **Cycle Stats & Analytics:** Calculates average cycle length, period duration, current cycle day, and predicts upcoming period & ovulation windows.
+- **Interactive Date-Picker Modal:** Log period start dates via "+ Log period start" modal with quick date presets (*Today*, *Yesterday*, *2 days ago*, *3 days ago* or custom date picker), flow intensity (`spotting`, `light`, `medium`, `heavy`), and notes.
+- **Live Calendar & Stats Synchronization:** Instant recalculation of cycle stats (average cycle length, period duration, current cycle day, and next predicted period) with live calendar dot updates.
 - **Visual Analytics:** Interactive charts powered by Recharts for flow intensity trends, phase timelines, and cycle regularity.
-- **Log Flow & Notes:** Easily log daily flow levels (`light`, `medium`, `heavy`, `spotting`) and personal notes.
 
-### 🌿 2. Comprehensive Symptom & Mood Logger
-- **Multi-Category Tracking:** Track physical symptoms (cramps, bloating, acne, fatigue, headaches) and emotional states (calm, anxious, irritable, energetic, sad).
-- **Severity Scoring:** Monitor symptom severity over time to identify recurring phase patterns (e.g., luteal phase mood dips or ovulatory pain).
+### 🗓️ 2. Interactive Day Detail Panel
+- **Click-to-View Calendar Days:** Click any calendar day to inspect everything logged for that day.
+- **Full View/Edit/Delete Capabilities:** View and update logged flow level, notes, mood, symptom list, and severity score (1–5 slider) per date.
+- **Live Deletion:** Delete entries with one click—clearing flow and symptoms from MongoDB/mock storage, immediately updating stats, and removing calendar dots in real time.
 
-### 🤖 3. Grounded AI Health Assistant (RAG + LangGraph)
+### 🚀 3. Guided 3-Step Onboarding Walkthrough
+- **Brand-New User Setup:** Interactive walkthrough after signup (Step 1: Confirm focus area -> Step 2: Optional last-period start date -> Step 3: First quick log) instead of dropping users onto an empty dashboard.
+- **Personalized Space:** Automatically initializes cycle status, predicted start date, and lifestyle widgets upon completion.
+
+### 🌿 4. Comprehensive Symptom & Mood Logger
+- **Multi-Category Tracking:** Track physical symptoms (cramps, bloating, acne, fatigue, headaches) and emotional states (calm, happy, anxious, sad, irritable, tired).
+- **Severity Scoring & Red-Flag Guidance:** Monitor symptom severity over time (1–5 scale) and view automatic clinical care guidance if red-flag symptoms are selected.
+
+### 🤖 5. Grounded AI Health Assistant (RAG + LangGraph)
 - **Medically Grounded RAG Agent:** Built using **LangGraph** and **LangChain** workflow nodes, retrieving from a curated medical knowledge base.
 - **Red-Flag Safety Screening:** Scans queries for urgent clinical symptoms (severe pain, excessive bleeding, high fever, pregnancy emergencies) and instantly presents emergency care warnings.
 - **Citation & Transparency:** Provides clear source references and medical disclaimers with every answer.
 
-### 🤰 4. Pregnancy Companion Mode
+### 🤰 6. Pregnancy Companion Mode
 - **Weekly Guidance:** Tailored developmental insights from Week 4 through Week 40.
 - **Trimester Milestones & Nutrition:** Trimester-by-trimester recommendations for folate, iron, hydration, and exercise.
 - **Symptom & Kick Loggers:** Track pregnancy-specific symptoms and fetal movement patterns.
 
-### 💊 5. Medication & Supplement Scheduler
+### 💊 7. Medication & Supplement Scheduler
 - **Daily Reminders:** Track birth control pills, prenatal vitamins, PCOS supplements (Myo-Inositol, Vitamin D3), and prescription medications.
 - **Dose & Schedule Tracking:** Active vs. paused medication states, custom dosage schedules, and logging history.
 
-### 🩺 6. Doctor Summary Generator
+### 🩺 8. Doctor Summary Generator
 - **Exportable Health Reports:** Generates a structured 30/60/90-day clinical report summarizing cycle statistics, top logged symptoms, medication compliance, and user notes.
 - **Appointment Ready:** Designed for quick review with gynecologists, endocrinologists, or primary care providers.
 
-### 🌸 7. Teen Mode
+### 🌸 9. Teen Mode
 - **Friendly & Supportive Interface:** Simplified, educational explanations of puberty, first periods, hygiene, and body changes without clinical jargon.
 - **Privacy-First:** Reassuring guidance tailored for younger users navigating early cycles.
 
-### 🤝 8. Partner & Caregiver Data Sharing
+### 🤝 10. Partner & Caregiver Data Sharing
 - **Discreet Privacy Controls:** Granular toggle permissions to share cycle predictions, symptoms, or pregnancy updates with trusted partners, family, or healthcare providers.
 
-### 💬 9. Anonymous Community Discussions
+### 💬 11. Anonymous Community Discussions
 - **Safe Space Forums:** Discussion boards categorized by topics (*PCOS & Hormones*, *Pregnancy*, *Cycle Basics*, *Mental Wellbeing*).
 - **Community Engagement:** Post questions, reply anonymously, and share lived experiences safely.
 
@@ -94,7 +103,9 @@ saaheeli/
 ├── src/
 │   ├── components/             # Reusable UI components & Layouts
 │   │   ├── common/             # Buttons, Cards, Modals, Badges
-│   │   └── layout/             # AppLayout, PublicLayout, Navigation
+│   │   ├── layout/             # AppLayout, PublicLayout, Navigation
+│   │   ├── onboarding/         # OnboardingWalkthrough 3-step setup modal
+│   │   └── tracker/            # LogPeriodStartModal date-picker modal
 │   ├── context/                # AuthContext, ThemeContext, NotificationContext
 │   ├── mock/                   # Fallback offline datasets & medical corpus
 │   ├── pages/                  # 20+ feature pages (Tracker, Assistant, Meds, etc.)
@@ -103,7 +114,7 @@ saaheeli/
 │   └── main.tsx                # Application Entry Point
 ├── .env                        # Local Environment Variables (Git-ignored)
 ├── .env.example                # Environment Variable Template
-├── server.js                   # Node.js REST API Server connected to MongoDB Atlas
+├── server.js                   # Node.js REST API Server connected to MongoDB Atlas (Auth, Cycle, Symptoms, Meds, Assistant)
 ├── vercel.json                 # Vercel Single-Page Application rewrite config
 ├── vite.config.ts              # Vite dev server configuration & API proxy
 └── package.json                # Dependencies and npm scripts
