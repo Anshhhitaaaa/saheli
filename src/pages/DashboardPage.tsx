@@ -9,13 +9,25 @@ import { useAuth } from '../context/AuthContext';
 import { getCycleStats, type CycleStats } from '../services/cycleService';
 import { useCountUp } from '../hooks/useCountUp';
 import { staggerContainer, fadeUp } from '../animations/variants';
+import { LogPeriodStartModal } from '../components/tracker/LogPeriodStartModal';
+import { OnboardingWalkthrough } from '../components/onboarding/OnboardingWalkthrough';
 
 export function DashboardPage() {
   const { user } = useAuth();
   const [stats, setStats] = useState<CycleStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [logModalOpen, setLogModalOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+
   const hasCycleData = Boolean(stats && stats.cycleCount > 0 && stats.currentDay !== null);
   const isNew = !user?.lastPeriodStart && !hasCycleData;
+
+  // Trigger onboarding modal automatically for brand new users
+  useEffect(() => {
+    if (user && (!user.hasCompletedOnboarding && (!user.lastPeriodStart || user.email === 'new@saheli.app'))) {
+      setOnboardingOpen(true);
+    }
+  }, [user]);
 
   const todayKey = new Date().toISOString().slice(0, 10);
   const [waterGlasses, setWaterGlasses] = useState<number>(() => {
@@ -43,6 +55,13 @@ export function DashboardPage() {
   const handleEnergy = (level: string) => {
     setEnergyLevel(level);
     localStorage.setItem('saheli_energy_' + todayKey, level);
+  };
+
+  const refreshStats = async () => {
+    if (!user) return;
+    const s = await getCycleStats(user.email);
+    setStats(s);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -122,11 +141,9 @@ export function DashboardPage() {
                       }`}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <Link to="/tracker">
-                    <Button size="sm" leftIcon={<Plus className="h-4 w-4" />}>
-                      Log period
-                    </Button>
-                  </Link>
+                  <Button size="sm" onClick={() => setLogModalOpen(true)} leftIcon={<Plus className="h-4 w-4" />}>
+                    + Log period start
+                  </Button>
                   <Link to="/tracker/symptoms">
                     <Button variant="outline" size="sm">
                       Log symptoms
@@ -286,7 +303,7 @@ export function DashboardPage() {
         </motion.div>
       )}
 
-      {/* Onboarding for new users */}
+      {/* Onboarding Banner for new users */}
       {isNew && (
         <motion.div
           variants={fadeUp}
@@ -295,27 +312,18 @@ export function DashboardPage() {
           className="mt-6"
         >
           <Card className="border-clay-200/70 bg-clay-50/50 dark:border-clay-700/50 dark:bg-clay-800/20">
-            <h3 className="font-display text-lg font-600 text-clay-700 dark:text-clay-200">
-              Welcome — let’s set up your space
-            </h3>
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              {[
-                { icon: CalendarDays, label: 'Log your first period', to: '/tracker' },
-                { icon: Sparkles, label: 'Ask the assistant a question', to: '/assistant' },
-                { icon: BookOpen, label: 'Read a beginner article', to: '/library' },
-              ].map((s) => {
-                const Icon = s.icon;
-                return (
-                  <Link key={s.to} to={s.to}>
-                    <div className="flex h-full items-center gap-3 rounded-xl bg-white p-4 transition-shadow hover:shadow-card dark:bg-sand-800">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-clay-100 text-clay-600 dark:bg-clay-800/40 dark:text-clay-200">
-                        <Icon className="h-5 w-5" />
-                      </span>
-                      <span className="text-sm font-600 text-sand-800 dark:text-sand-100">{s.label}</span>
-                    </div>
-                  </Link>
-                );
-              })}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h3 className="font-display text-lg font-600 text-clay-700 dark:text-clay-200">
+                  Welcome — let’s set up your space
+                </h3>
+                <p className="mt-1 text-sm text-sand-600 dark:text-sand-300">
+                  Run the 3-step walkthrough to set your focus area, last period start date, and quick log.
+                </p>
+              </div>
+              <Button onClick={() => setOnboardingOpen(true)} size="sm" leftIcon={<Sparkles className="h-4 w-4" />}>
+                Start setup walkthrough
+              </Button>
             </div>
           </Card>
         </motion.div>
@@ -351,6 +359,24 @@ export function DashboardPage() {
             );
           })}
       </motion.div>
+
+      {/* Log Period Modal */}
+      <LogPeriodStartModal
+        open={logModalOpen}
+        onClose={() => setLogModalOpen(false)}
+        onSuccess={() => {
+          refreshStats();
+        }}
+      />
+
+      {/* Onboarding Walkthrough Modal */}
+      <OnboardingWalkthrough
+        open={onboardingOpen}
+        onClose={() => {
+          setOnboardingOpen(false);
+          refreshStats();
+        }}
+      />
 
       <div className="mt-8">
         <Disclaimer variant="inline" />

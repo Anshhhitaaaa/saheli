@@ -223,6 +223,16 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 200, { logs: updated });
     }
 
+    if (pathname === '/api/cycle' && req.method === 'DELETE') {
+      const email = url.searchParams.get('email');
+      const date = url.searchParams.get('date');
+      if (!email || !date) return sendJSON(res, 400, { error: 'Email and date required' });
+
+      await db.collection('cycle_logs').deleteOne({ email: email.toLowerCase().trim(), date });
+      const updated = await db.collection('cycle_logs').find({ email: email.toLowerCase().trim() }).toArray();
+      return sendJSON(res, 200, { logs: updated });
+    }
+
     // --- SYMPTOMS ---
     if (pathname === '/api/symptoms' && req.method === 'GET') {
       const email = url.searchParams.get('email');
@@ -233,14 +243,24 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/api/symptoms' && req.method === 'POST') {
       const body = await parseJSONBody(req);
-      const { email, date, symptoms, notes } = body;
+      const { email, date, symptoms, notes, mood, severity } = body;
       if (!email || !date) return sendJSON(res, 400, { error: 'Email and date required' });
 
       await db.collection('symptom_logs').updateOne(
         { email: email.toLowerCase().trim(), date },
-        { $set: { email: email.toLowerCase().trim(), date, symptoms, notes, updatedAt: new Date().toISOString() } },
+        { $set: { email: email.toLowerCase().trim(), date, symptoms, notes, mood, severity, updatedAt: new Date().toISOString() } },
         { upsert: true }
       );
+      const logs = await db.collection('symptom_logs').find({ email: email.toLowerCase().trim() }).toArray();
+      return sendJSON(res, 200, { logs });
+    }
+
+    if (pathname === '/api/symptoms' && req.method === 'DELETE') {
+      const email = url.searchParams.get('email');
+      const date = url.searchParams.get('date');
+      if (!email || !date) return sendJSON(res, 400, { error: 'Email and date required' });
+
+      await db.collection('symptom_logs').deleteOne({ email: email.toLowerCase().trim(), date });
       const logs = await db.collection('symptom_logs').find({ email: email.toLowerCase().trim() }).toArray();
       return sendJSON(res, 200, { logs });
     }

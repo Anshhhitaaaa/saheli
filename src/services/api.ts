@@ -51,16 +51,24 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ email, date, flow, note }),
       }),
+    delete: (email: string, date: string) =>
+      request<{ logs: any[] }>(`/api/cycle?email=${encodeURIComponent(email)}&date=${encodeURIComponent(date)}`, {
+        method: 'DELETE',
+      }),
   },
 
   // Symptoms API
   symptoms: {
     get: (email: string) =>
       request<{ logs: any[] }>(`/api/symptoms?email=${encodeURIComponent(email)}`),
-    save: (email: string, date: string, symptoms: string[], notes?: string) =>
+    save: (email: string, date: string, symptoms: string[], notes?: string, mood?: string, severity?: number) =>
       request<{ logs: any[] }>('/api/symptoms', {
         method: 'POST',
-        body: JSON.stringify({ email, date, symptoms, notes }),
+        body: JSON.stringify({ email, date, symptoms, notes, mood, severity }),
+      }),
+    delete: (email: string, date: string) =>
+      request<{ logs: any[] }>(`/api/symptoms?email=${encodeURIComponent(email)}&date=${encodeURIComponent(date)}`, {
+        method: 'DELETE',
       }),
   },
 

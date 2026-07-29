@@ -19,6 +19,7 @@ export interface SaheliUser {
   cycleAvgLength?: number;
   cycleAvgPeriod?: number;
   lastPeriodStart?: string; // ISO date
+  hasCompletedOnboarding?: boolean;
   createdAt: string;
 }
 
