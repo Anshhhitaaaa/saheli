@@ -62,7 +62,8 @@ export function SymptomsPage() {
       symptoms: selected,
       severity,
       mood,
-      notes: note.trim() || undefined,
+      note: note.trim() || undefined,
+      redFlag: hasRedFlag,
     };
     setHistory((prev) => [entry, ...prev]);
     setJustSaved(true);
@@ -73,7 +74,7 @@ export function SymptomsPage() {
     setMood('calm');
 
     if (user?.email) {
-      api.symptoms.save(user.email, todayDate, selected, note).catch(() => {});
+      api.symptoms.save(user.email, todayDate, selected, note, mood, severity).catch(() => {});
     }
   };
 
