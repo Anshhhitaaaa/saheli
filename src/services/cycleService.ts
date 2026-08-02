@@ -86,31 +86,49 @@ export async function getCycleStats(email: string, history?: { date: string; flo
 
 export interface InsightTrend {
   date: string;
+  mood: string;
+  moodLabel: string;
   moodScore: number;
   severity: number;
 }
 
 export async function getInsightTrends(email: string): Promise<InsightTrend[]> {
+  const moodScoreMap: Record<string, number> = {
+    happy: 5, calm: 4, tired: 3, anxious: 2, irritable: 2, sad: 1,
+  };
+
   try {
     const res = await api.symptoms.get(email);
-    if (res && Array.isArray(res.logs)) {
-      const moodScore: Record<string, number> = {
-        calm: 4, happy: 5, anxious: 2, sad: 1, irritable: 2, tired: 2,
-      };
-      return res.logs.map((s: any) => ({
-        date: s.date,
-        moodScore: moodScore[s.mood] ?? 3,
-        severity: s.severity || 3,
-      }));
-    }
-  } catch {}
+    if (res && Array.isArray(res.logs) && res.logs.length > 0) {
+      // Sort chronologically by date (oldest to newest)
+      const validLogs = res.logs
+        .filter((s: any) => s.date && (s.mood || s.severity))
+        .sort((a: any, b: any) => String(a.date).localeCompare(String(b.date)));
 
-  const moodScore: Record<string, number> = {
-    calm: 4, happy: 5, anxious: 2, sad: 1, irritable: 2, tired: 2,
-  };
+      if (validLogs.length > 0) {
+        return validLogs.map((s: any) => {
+          const m = s.mood ? String(s.mood).toLowerCase() : 'calm';
+          const capitalized = m.charAt(0).toUpperCase() + m.slice(1);
+          return {
+            date: s.date,
+            mood: m,
+            moodLabel: capitalized,
+            moodScore: moodScoreMap[m] ?? 3,
+            severity: Number(s.severity) || 3,
+          };
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching symptom mood trends from PostgreSQL:', err);
+  }
+
+  // Fallback if database is completely empty
   return symptomHistory.map((s) => ({
     date: s.date,
-    moodScore: moodScore[s.mood] ?? 3,
+    mood: s.mood,
+    moodLabel: s.mood.charAt(0).toUpperCase() + s.mood.slice(1),
+    moodScore: moodScoreMap[s.mood] ?? 3,
     severity: s.severity,
   }));
 }

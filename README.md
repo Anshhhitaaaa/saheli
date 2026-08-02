@@ -6,7 +6,7 @@
 
 ## 🌟 Overview
 
-Saheli is designed to provide actionable, evidence-based, and empathetic health guidance for women at every stage of life. Powered by **React, TypeScript, Node.js, MongoDB Atlas**, and a **LangGraph + LangChain RAG AI Agent (Llama 3)**, Saheli bridges the gap between daily body logging, clinical medical literature, and patient-doctor communication.
+Saheli is designed to provide actionable, evidence-based, and empathetic health guidance for women at every stage of life. Powered by **React, TypeScript, Node.js, PostgreSQL**, and a **LangGraph + LangChain RAG AI Agent (Llama 3)**, Saheli bridges the gap between daily body logging, clinical medical literature, and patient-doctor communication.
 
 ---
 
@@ -20,7 +20,7 @@ Saheli is designed to provide actionable, evidence-based, and empathetic health 
 ### 🗓️ 2. Interactive Day Detail Panel
 - **Click-to-View Calendar Days:** Click any calendar day to inspect everything logged for that day.
 - **Full View/Edit/Delete Capabilities:** View and update logged flow level, notes, mood, symptom list, and severity score (1–5 slider) per date.
-- **Live Deletion:** Delete entries with one click—clearing flow and symptoms from MongoDB/mock storage, immediately updating stats, and removing calendar dots in real time.
+- **Live Deletion:** Delete entries with one click—clearing flow and symptoms from database/mock storage, immediately updating stats, and removing calendar dots in real time.
 
 ### 🚀 3. Guided 3-Step Onboarding Walkthrough
 - **Brand-New User Setup:** Interactive walkthrough after signup (Step 1: Confirm focus area -> Step 2: Optional last-period start date -> Step 3: First quick log) instead of dropping users onto an empty dashboard.
@@ -71,14 +71,14 @@ graph TD
     D --> E[Medical Knowledge Base Retrieval]
     E --> F[Llama 3 Generation Node]
     F --> G[Formatter Node: Add Sources & Disclaimer]
-    G --> H[MongoDB Assistant Chat History]
+    G --> H[PostgreSQL Assistant Chat History]
     H --> I[Response Sent to User]
 ```
 
 - **Guardrail Node:** Checks against urgent clinical keyword patterns.
 - **Retriever Node:** Performs semantic and keyword search across verified medical guidelines.
 - **LLM Node:** Synthesizes actionable, empathetic, non-diagnostic guidance using Llama 3.
-- **Persistence Node:** Saves chat logs to the MongoDB `assistant_chats` collection for cross-session continuity.
+- **Persistence Node:** Saves chat logs to the PostgreSQL `assistant_chats` table for cross-session continuity.
 
 ---
 
@@ -88,7 +88,7 @@ graph TD
 | :--- | :--- |
 | **Frontend** | React 18, TypeScript, Vite, Tailwind CSS, Framer Motion, Recharts, Lucide React, React Router v7 |
 | **Backend** | Node.js (Native HTTP Server), ES Modules |
-| **Database** | MongoDB Atlas (`saheli` database via MongoDB Node Driver v7) |
+| **Database** | PostgreSQL (`saheli` database via `pg` Node Driver) |
 | **AI Framework** | LangGraph, LangChain, Llama 3 (Groq API / Local LLM) |
 | **Deployment** | Vercel (Frontend SPA), Render (Backend API Service) |
 
@@ -114,7 +114,7 @@ saaheeli/
 │   └── main.tsx                # Application Entry Point
 ├── .env                        # Local Environment Variables (Git-ignored)
 ├── .env.example                # Environment Variable Template
-├── server.js                   # Node.js REST API Server connected to MongoDB Atlas (Auth, Cycle, Symptoms, Meds, Assistant)
+├── server.js                   # Node.js REST API Server connected to PostgreSQL (Auth, Cycle, Symptoms, Meds, Assistant)
 ├── vercel.json                 # Vercel Single-Page Application rewrite config
 ├── vite.config.ts              # Vite dev server configuration & API proxy
 └── package.json                # Dependencies and npm scripts
@@ -127,8 +127,8 @@ saaheeli/
 Create a `.env` file in the root directory (refer to `.env.example`):
 
 ```env
-# Backend MongoDB Connection String
-MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/saheli?retryWrites=true&w=majority
+# Backend PostgreSQL Connection String
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/saheli
 
 # Backend Server Port
 PORT=5000
@@ -154,7 +154,7 @@ VITE_API_URL=
    ```bash
    npm run server
    ```
-   *Output: `Successfully connected to MongoDB Atlas (saheli database)`*
+   *Output: `Successfully connected to PostgreSQL database`*
 
 3. **Start the Frontend Development Server:**
    In a second terminal window:
@@ -175,7 +175,7 @@ VITE_API_URL=
    - **Build Command:** `npm install`
    - **Start Command:** `node server.js`
 4. Add Environment Variables:
-   - `MONGODB_URI`: Your MongoDB Atlas Connection String
+   - `DATABASE_URL`: Your PostgreSQL Connection String
    - `PORT`: `5000`
 5. Copy your live Render URL (e.g., `https://saheli-backend.onrender.com`).
 

@@ -3,17 +3,24 @@ import { motion } from 'framer-motion';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
 } from 'recharts';
-import { TrendingUp, Calendar, Smile, Users } from 'lucide-react';
+import { TrendingUp, Calendar, Smile } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Disclaimer } from '../components/common/Disclaimer';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { getInsightTrends, type InsightTrend } from '../services/cycleService';
 import { getCycleHistory } from '../mock/cycle';
-import { communityInsights } from '../mock/communityInsights';
 import { fadeUp, staggerContainer } from '../animations/variants';
-
 import { api } from '../services/api';
+
+const moodEmojiMap: Record<string, string> = {
+  happy: '🙂',
+  calm: '🌿',
+  tired: '😴',
+  anxious: '😟',
+  irritable: '😠',
+  sad: '😢',
+};
 
 export function InsightsPage() {
   const { user } = useAuth();
@@ -71,18 +78,54 @@ export function InsightsPage() {
   const axisColor = isDark ? '#D8E6DC' : '#735C3E';
   const gridColor = isDark ? 'rgba(216,230,220,0.15)' : 'rgba(115,92,62,0.12)';
 
+  // Limit visual chart view to a rolling window of the last 7 entries (without deleting any DB records)
+  const displayTrends = trends.slice(-7);
+  const displayCycleLengths = cycleLengths.slice(-7);
+
+  // Format Y-Axis values for Moods (1 = Sad, 2 = Anxious, 3 = Tired, 4 = Calm, 5 = Happy)
+  const formatMoodYAxis = (value: number) => {
+    switch (value) {
+      case 5: return 'Happy';
+      case 4: return 'Calm';
+      case 3: return 'Tired';
+      case 2: return 'Anxious';
+      case 1: return 'Sad';
+      default: return '';
+    }
+  };
+
+  // Custom Mood Chart Tooltip showing real database mood & date
+  const CustomMoodTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data: InsightTrend = payload[0].payload;
+      const emoji = moodEmojiMap[data.mood?.toLowerCase()] || '🌿';
+      return (
+        <div className="rounded-xl bg-sand-900 p-3 text-xs text-sand-50 shadow-lg dark:bg-sand-800 dark:text-sand-100">
+          <p className="font-600 border-b border-sand-700 pb-1 mb-1.5">{data.date}</p>
+          <div className="flex items-center gap-1.5 font-600 text-rose-300">
+            <span>{emoji}</span>
+            <span>Mood: {data.moodLabel}</span>
+          </div>
+          <p className="text-sand-400 mt-1">Symptom Severity: {data.severity}/5</p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-5xl space-y-8">
       <motion.div variants={staggerContainer} initial="hidden" animate="visible">
         <motion.h1 variants={fadeUp} className="font-display text-3xl font-600 text-sand-900 dark:text-sand-100 sm:text-4xl">
-          Insights
+          Insights & Analytics
         </motion.h1>
         <motion.p variants={fadeUp} className="mt-2 text-sand-600 dark:text-sand-300">
-          Patterns from your own data — in plain language. Bring these to your doctor.
+          Real-time trends generated directly from your logged PostgreSQL database entries.
         </motion.p>
       </motion.div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Cycle Length Chart */}
         <motion.div variants={fadeUp} initial="hidden" animate="visible">
           <Card className="h-full">
             <div className="flex items-center gap-2">
@@ -90,14 +133,14 @@ export function InsightsPage() {
               <h3 className="font-600 text-sand-900 dark:text-sand-100">Cycle length over time</h3>
             </div>
             <p className="mt-1 text-sm text-sand-500 dark:text-sand-400">
-              {cycleLengths.length > 1
-                ? 'Your cycle length has been fairly stable — a useful pattern to share with your doctor.'
-                : 'Log a couple more cycles to see your length pattern.'}
+              {displayCycleLengths.length > 1
+                ? `Showing your latest ${displayCycleLengths.length} cycle length patterns.`
+                : 'Log period dates on the tracker page to calculate your cycle lengths.'}
             </p>
-            <div className="mt-4 h-56">
-              {cycleLengths.length > 0 ? (
+            <div className="mt-4 h-60">
+              {displayCycleLengths.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={cycleLengths} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                  <BarChart data={displayCycleLengths} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
                     <CartesianGrid stroke={gridColor} vertical={false} />
                     <XAxis dataKey="label" tick={{ fontSize: 12, fill: axisColor }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 12, fill: axisColor }} axisLine={false} tickLine={false} domain={[0, 'dataMax + 5']} />
@@ -112,59 +155,79 @@ export function InsightsPage() {
                       cursor={{ fill: gridColor }}
                     />
                     <Bar dataKey="days" radius={[6, 6, 0, 0]} animationDuration={800}>
-                      {cycleLengths.map((_, i) => (
+                      {displayCycleLengths.map((_, i) => (
                         <Cell key={i} fill={isDark ? '#CE674E' : '#B84A34'} />
                       ))}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <EmptyChart />
+                <EmptyChart message="No cycle logs found — log your period dates to view length trends." />
               )}
             </div>
           </Card>
         </motion.div>
 
+        {/* Real-time Mood Across Entries Chart (Rolling 7 Entries) */}
         <motion.div variants={fadeUp} initial="hidden" animate="visible">
           <Card className="h-full">
             <div className="flex items-center gap-2">
-              <Smile className="h-5 w-5 text-clay-500" />
+              <Smile className="h-5 w-5 text-rose-500" />
               <h3 className="font-600 text-sand-900 dark:text-sand-100">Mood across entries</h3>
             </div>
             <p className="mt-1 text-sm text-sand-500 dark:text-sand-400">
-              {trends.length > 2
-                ? 'Your mood tends to dip in the days before your period — a common pattern worth mentioning to your doctor.'
-                : 'Log more moods to see how they shift across your cycle.'}
+              {displayTrends.length > 0
+                ? `Showing real-time mood trends across your latest ${displayTrends.length} logged entries.`
+                : 'Log your moods on the Symptoms page to track your emotional shifts over time.'}
             </p>
-            <div className="mt-4 h-56">
-              {trends.length > 0 ? (
+            <div className="mt-4 h-60">
+              {displayTrends.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={trends} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                  <LineChart data={displayTrends} margin={{ top: 8, right: 12, left: 10, bottom: 0 }}>
                     <CartesianGrid stroke={gridColor} vertical={false} />
-                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: axisColor }} axisLine={false} tickLine={false} tickFormatter={(v) => v.slice(5)} />
-                    <YAxis domain={[0, 5]} tick={{ fontSize: 12, fill: axisColor }} axisLine={false} tickLine={false} />
-                    <Tooltip
-                      contentStyle={{ background: isDark ? '#544432' : '#FBF8F4', border: 'none', borderRadius: 12, fontSize: 12, color: isDark ? '#F5EFE7' : '#3A2F22' }}
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 11, fill: axisColor }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v) => String(v).slice(5)}
                     />
-                    <Line type="monotone" dataKey="moodScore" stroke={isDark ? '#8BAE97' : '#477459'} strokeWidth={2.5} dot={{ r: 3, fill: isDark ? '#8BAE97' : '#477459' }} animationDuration={900} />
+                    <YAxis
+                      domain={[1, 5]}
+                      ticks={[1, 2, 3, 4, 5]}
+                      tickFormatter={formatMoodYAxis}
+                      tick={{ fontSize: 11, fill: axisColor }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip content={<CustomMoodTooltip />} />
+                    <Line
+                      type="monotone"
+                      dataKey="moodScore"
+                      stroke={isDark ? '#E58A73' : '#CE674E'}
+                      strokeWidth={3}
+                      dot={{ r: 4, fill: isDark ? '#E58A73' : '#CE674E', strokeWidth: 2 }}
+                      activeDot={{ r: 6 }}
+                      animationDuration={900}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
-                <EmptyChart />
+                <EmptyChart message="No mood entries in database yet — log your daily mood on the Symptoms or Tracker page." />
               )}
             </div>
           </Card>
         </motion.div>
       </div>
 
+      {/* Takeaway */}
       <motion.div variants={fadeUp} initial="hidden" animate="visible" className="mt-6">
         <Card className="flex items-start gap-3 bg-sage-50/60 dark:bg-sage-800/20">
           <TrendingUp className="mt-0.5 h-6 w-6 shrink-0 text-sage-600 dark:text-sage-300" />
           <div>
-            <h3 className="font-600 text-sand-900 dark:text-sand-100">A plain-language takeaway</h3>
+            <h3 className="font-600 text-sand-900 dark:text-sand-100">Plain-language Takeaway</h3>
             <p className="mt-1 text-sm text-sand-600 dark:text-sand-400">
-              Charts show patterns, not diagnoses. If something looks unusual or concerning, the most
-              useful next step is to bring your tracked data to your clinician.
+              Charts show your latest 7 logged entries for optimal clarity, while all historic data remains stored safely in your PostgreSQL database (`symptom_logs` and `cycle_logs`).
             </p>
           </div>
         </Card>
@@ -177,10 +240,10 @@ export function InsightsPage() {
   );
 }
 
-function EmptyChart() {
+function EmptyChart({ message }: { message?: string }) {
   return (
-    <div className="flex h-full items-center justify-center text-sm text-sand-400">
-      Not enough data yet — keep tracking.
+    <div className="flex h-full items-center justify-center p-6 text-center text-sm text-sand-400">
+      {message || 'Not enough data yet — keep tracking.'}
     </div>
   );
 }
