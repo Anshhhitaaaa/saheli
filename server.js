@@ -810,12 +810,30 @@ const server = http.createServer(async (req, res) => {
       const email = url.searchParams.get('email');
       if (!email) return sendJSON(res, 400, { error: 'Email required' });
 
-      const cleanEmail = email.toLowerCase().trim();
+      // Auto-insert daily mood check-in notification for today
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const moodNotifId = `n_mood_${cleanEmail}_${todayStr}`;
+      const existingMood = await pool.query('SELECT id FROM user_notifications WHERE id = $1', [moodNotifId]).catch(() => ({ rows: [] }));
+      
+      if (existingMood.rows.length === 0) {
+        const userRes = await pool.query('SELECT name FROM users WHERE email = $1', [cleanEmail]).catch(() => ({ rows: [] }));
+        const firstName = userRes.rows[0]?.name ? userRes.rows[0].name.split(' ')[0] : 'there';
+        await pool.query(`
+          INSERT INTO user_notifications (id, email, category, title, message, discreet_message, read, created_at)
+          VALUES ($1, $2, 'logging', 'Daily Mood Check-in 🌿', $3, 'Daily Saheli wellness check-in ready.', false, NOW())
+          ON CONFLICT (id) DO NOTHING
+        `, [
+          moodNotifId,
+          cleanEmail,
+          `How are you feeling today, ${firstName}? Tap to log your mood, energy, and physical symptoms in Saheli.`
+        ]).catch(() => {});
+      }
+
       const resNotifs = await pool.query('SELECT * FROM user_notifications WHERE email = $1 ORDER BY created_at DESC', [cleanEmail]);
       let notifs = resNotifs.rows.map(mapNotification);
 
-      // Seed personalized notifications tailored to user profile, focus, and tracked data
-      if (notifs.length === 0) {
+      // Seed initial sample notifications tailored to user profile if user has no other notifications
+      if (notifs.length <= 1) {
         const userRes = await pool.query('SELECT * FROM users WHERE email = $1', [cleanEmail]);
         const user = userRes.rows.length > 0 ? mapUser(userRes.rows[0]) : null;
         const userName = user?.name ? user.name.split(' ')[0] : 'there';
