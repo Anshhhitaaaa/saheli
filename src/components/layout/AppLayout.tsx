@@ -224,7 +224,7 @@ export function AppLayout() {
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="absolute inset-0 bg-sand-900/40 backdrop-blur-sm"
+              className="absolute inset-0 bg-sand-900/40"
               onClick={() => setNotifDrawerOpen(false)}
             />
             <motion.aside
@@ -232,7 +232,7 @@ export function AppLayout() {
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col bg-white shadow-2xl dark:bg-sand-800"
+              className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col bg-white shadow-2xl dark:bg-sand-800 transform-gpu will-change-transform"
             >
               {/* Header */}
               <div className="flex items-center justify-between border-b border-sand-200/60 px-5 py-4 dark:border-sand-700/60">
