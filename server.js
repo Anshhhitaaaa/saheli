@@ -57,8 +57,8 @@ async function initDB() {
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       );
 
-      await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS has_completed_onboarding BOOLEAN DEFAULT TRUE;').catch(() => {});
-      await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS hascompletedonboarding BOOLEAN DEFAULT TRUE;').catch(() => {});
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS has_completed_onboarding BOOLEAN DEFAULT TRUE;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS hascompletedonboarding BOOLEAN DEFAULT TRUE;
 
       CREATE TABLE IF NOT EXISTS cycle_logs (
         id SERIAL PRIMARY KEY,
