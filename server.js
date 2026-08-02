@@ -53,8 +53,12 @@ async function initDB() {
         pregnancy_mode BOOLEAN DEFAULT FALSE,
         pregnancy_week INTEGER,
         last_period_start TEXT,
+        has_completed_onboarding BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       );
+
+      await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS has_completed_onboarding BOOLEAN DEFAULT TRUE;').catch(() => {});
+      await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS hascompletedonboarding BOOLEAN DEFAULT TRUE;').catch(() => {});
 
       CREATE TABLE IF NOT EXISTS cycle_logs (
         id SERIAL PRIMARY KEY,
@@ -416,6 +420,7 @@ const server = http.createServer(async (req, res) => {
         pregnancyMode: 'pregnancy_mode',
         pregnancyWeek: 'pregnancy_week',
         lastPeriodStart: 'last_period_start',
+        hasCompletedOnboarding: 'has_completed_onboarding',
         password: 'password'
       };
 
@@ -598,14 +603,36 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 200, { meds: updated.rows.map(mapMedication) });
     }
 
-    // --- LANGGRAPH + LANGCHAIN + LLAMA 3 RAG ASSISTANT ROUTE ---
+    // --- LANGGRAPH + DATA-DRIVEN RAG ASSISTANT ROUTE ---
     if (pathname === '/api/assistant/chat' && req.method === 'POST') {
       const body = await parseJSONBody(req);
       const { email, message, conversationId } = body;
       if (!message) return sendJSON(res, 400, { error: 'Message text is required' });
 
-      // Run LangGraph Agent Workflow Nodes (Safety Check -> Retriever -> Llama Generation -> Formatter)
-      const ragResult = await runLangGraphRAGAgent(message);
+      // Retrieve user profile and real PostgreSQL cycle logs
+      let userContext = {};
+      if (email && pool) {
+        const cleanEmail = email.toLowerCase().trim();
+        try {
+          const [userRes, cycleRes, symptomRes, medRes] = await Promise.all([
+            pool.query('SELECT * FROM users WHERE email = $1', [cleanEmail]).catch(() => ({ rows: [] })),
+            pool.query('SELECT * FROM cycle_logs WHERE email = $1 ORDER BY date DESC LIMIT 30', [cleanEmail]).catch(() => ({ rows: [] })),
+            pool.query('SELECT * FROM symptom_logs WHERE email = $1 ORDER BY date DESC LIMIT 14', [cleanEmail]).catch(() => ({ rows: [] })),
+            pool.query('SELECT * FROM medications WHERE email = $1 AND active = true', [cleanEmail]).catch(() => ({ rows: [] }))
+          ]);
+          userContext = {
+            profile: userRes.rows[0] ? mapUser(userRes.rows[0]) : null,
+            cycleLogs: cycleRes.rows.map(mapCycleLog),
+            symptomLogs: symptomRes.rows.map(mapSymptomLog),
+            medications: medRes.rows.map(mapMedication)
+          };
+        } catch {
+          // fallback
+        }
+      }
+
+      // Run Data-Driven LangGraph Agent Node Workflow
+      const ragResult = await runLangGraphRAGAgent(message, userContext);
 
       // Save to PostgreSQL assistant_chats history
       if (email && pool) {

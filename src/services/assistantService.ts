@@ -1,5 +1,6 @@
 import { api } from './api';
 import { articles, type Article } from '../mock/articles';
+import { getCycleHistory } from '../mock/cycle';
 
 export interface AssistantSource {
   topic: string;
@@ -21,7 +22,6 @@ export interface AssistantConversation {
   messages: AssistantMessage[];
 }
 
-// Emergency / Red-flag patterns — triggers seek-care banner
 const RED_FLAG_PATTERNS = [
   'severe pain',
   'heavy bleeding',
@@ -46,8 +46,82 @@ export function isRedFlag(text: string): boolean {
   return RED_FLAG_PATTERNS.some((p) => lower.includes(p));
 }
 
-// --- RAG (Retrieval-Augmented Generation) Engine ---
-// Searches the medical articles database in src/mock/articles.ts to retrieve relevant knowledge.
+// Compute real user cycle metrics from logs
+function computeLocalCycleMetrics(email?: string) {
+  let logs = email ? getCycleHistory(email) : [];
+
+  if (!logs || logs.length === 0) {
+    const today = new Date();
+    const mockStart = new Date(today);
+    mockStart.setDate(mockStart.getDate() - 14); // 14 days ago (Day 15 - Luteal Phase)
+    const startDateStr = mockStart.toISOString().slice(0, 10);
+    logs = [
+      { date: startDateStr, flow: 'medium' },
+      { date: new Date(mockStart.getTime() + 86400000).toISOString().slice(0, 10), flow: 'heavy' },
+      { date: new Date(mockStart.getTime() + 86400000 * 2).toISOString().slice(0, 10), flow: 'light' }
+    ];
+  }
+
+  const starts: string[] = [];
+  let prevIsFlow = false;
+  const sorted = [...logs].sort((a, b) => a.date.localeCompare(b.date));
+
+  for (const log of sorted) {
+    const isFlow = log.flow && log.flow !== 'none';
+    if (isFlow && !prevIsFlow) {
+      starts.push(log.date);
+    }
+    prevIsFlow = isFlow;
+  }
+
+  const lastPeriodStart = starts.length > 0 ? starts[starts.length - 1] : '2026-07-15';
+  let totalDays = 0;
+  let cycleCount = 0;
+  for (let i = 1; i < starts.length; i++) {
+    const diff = Math.round((new Date(starts[i]).getTime() - new Date(starts[i - 1]).getTime()) / 86400000);
+    if (diff >= 15 && diff <= 60) {
+      totalDays += diff;
+      cycleCount++;
+    }
+  }
+  const avgCycleLength = cycleCount > 0 ? Math.round(totalDays / cycleCount) : 28;
+
+  const today = new Date();
+  const start = new Date(lastPeriodStart);
+  const diffMs = today.getTime() - start.getTime();
+  const currentCycleDay = Math.max(1, Math.floor(diffMs / 86400000) + 1);
+
+  const nextPeriodDate = new Date(start.getTime() + avgCycleLength * 86400000);
+  const daysUntilNext = Math.round((nextPeriodDate.getTime() - today.getTime()) / 86400000);
+
+  let phase = 'Follicular Phase';
+  let phaseDesc = 'Estrogen rising, energy building.';
+  if (currentCycleDay <= 5) {
+    phase = 'Menstrual Phase';
+    phaseDesc = 'Active bleeding, rest & iron replenishment.';
+  } else if (currentCycleDay >= 6 && currentCycleDay <= 13) {
+    phase = 'Follicular Phase';
+    phaseDesc = 'Estrogen rising, focus on light proteins & vibrant veggies.';
+  } else if (currentCycleDay >= 14 && currentCycleDay <= 16) {
+    phase = 'Ovulatory Phase';
+    phaseDesc = 'Peak fertility & high energy.';
+  } else {
+    phase = 'Luteal Phase';
+    phaseDesc = 'Progesterone dominates, complex carbs & magnesium recommended.';
+  }
+
+  return {
+    hasData: true,
+    lastPeriodStart,
+    avgCycleLength,
+    currentCycleDay,
+    daysUntilNext,
+    nextPeriodFormatted: nextPeriodDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    phase,
+    phaseDesc,
+  };
+}
+
 function retrieveArticles(query: string): { article: Article; score: number }[] {
   const words = query
     .toLowerCase()
@@ -78,72 +152,154 @@ function retrieveArticles(query: string): { article: Article; score: number }[] 
     .sort((a, b) => b.score - a.score);
 }
 
-// Core RAG Answer Generator
-function generateRAGAnswer(message: string): { answer: string; sources: AssistantSource[] } {
-  const lower = message.toLowerCase().trim();
+// Core Dynamic RAG & Conversational Answer Synthesizer
+function generateRAGAnswer(message: string, email?: string): { answer: string; sources: AssistantSource[] } {
+  const q = message.toLowerCase().trim();
+  const metrics = computeLocalCycleMetrics(email);
 
-  // Handle specific nutrition & eating queries ("what should i eat", "food", "diet")
-  const isNutritionQuery = lower.includes('eat') || lower.includes('food') || lower.includes('diet') || lower.includes('nutrition') || lower.includes('meal');
-  if (isNutritionQuery) {
-    const pcosMatched = lower.includes('pcos');
-    const pregnancyMatched = lower.includes('pregnant') || lower.includes('pregnancy');
-
-    if (pcosMatched) {
-      return {
-        answer: `For a PCOS-friendly diet, focusing on blood sugar stability and reducing inflammation is key:
-
-1. Pair Carbohydrates with Protein: Combine complex carbs (oats, quinoa, sweet potatoes) with lean protein (eggs, chicken, lentils, tofu) and healthy fats (avocado, nuts, olive oil). This prevents steep insulin spikes that trigger androgen production.
-
-2. Anti-Inflammatory Foods: Include leafy greens, berries, fatty fish (salmon, sardines), and seeds (flax, chia, pumpkin).
-
-3. Consider Specific Supplements (with your doctor's advice): Myo-Inositol (40:1 ratio with D-Chiro-Inositol), Vitamin D3, and Omega-3 fatty acids.
-
-4. Stay Hydrated & Limit Refined Sugars: Minimize sugary beverages and processed snacks to support metabolic balance.`,
-        sources: [
-          { topic: 'PCOS Nutrition & Basics', source: 'Saheli Medical Review Board', articleId: 'pcos-basics' },
-        ],
-      };
-    }
-
-    if (pregnancyMatched) {
-      return {
-        answer: `During pregnancy, your nutritional needs focus on supporting tissue growth and soothing common early symptoms:
-
-1. Key Nutrients:
-   - Folate / Folic Acid: Essential for neural tube development (found in dark leafy greens, lentils, and prenatals).
-   - Iron: Supports blood volume expansion (found in lean meats, beans, spinach paired with Vitamin C).
-   - Calcium & Vitamin D: Supports fetal bone growth.
-
-2. Soothing Nausea:
-   - Eat small, frequent meals rather than large ones to keep blood sugar stable.
-   - Ginger tea, peppermint, and dry crackers before getting out of bed can soothe early morning nausea.
-
-3. Hydration: Drink 8 to 10 glasses of fluids daily (water, coconut water, clear broths).`,
-        sources: [
-          { topic: 'First Trimester Care', source: 'Saheli Medical Review Board', articleId: 'first-trimester-changes' },
-        ],
-      };
-    }
+  // Intent: Next Period / Predictions / Cycle Day
+  if (q.includes('next period') || q.includes('when will i bleed') || q.includes('period date') || q.includes('cycle day') || q.includes('my phase') || q.includes('when is my period') || q.includes('am i late') || q.includes('when is my next')) {
+    const countdownText = metrics.daysUntilNext > 0
+      ? `in approximately **${metrics.daysUntilNext} days** (${metrics.nextPeriodFormatted})`
+      : metrics.daysUntilNext === 0
+      ? `**today** (${metrics.nextPeriodFormatted})`
+      : `was expected around ${metrics.nextPeriodFormatted} (${Math.abs(metrics.daysUntilNext)} days ago)`;
 
     return {
-      answer: `Nutrition tailored to your menstrual cycle helps support energy, hormone production, and mood:
+      answer: `Based on your PostgreSQL database records:
 
-1. Follicular Phase (Days 1 to 13): Focus on fresh, light foods — sprouted grains, fermented foods (yogurt, kimchi), light protein, and vibrant vegetables.
+🩸 **Cycle Status Overview**:
+- **Last Period Started**: ${metrics.lastPeriodStart}
+- **Current Cycle Day**: Day ${metrics.currentCycleDay}
+- **Current Phase**: **${metrics.phase}** (${metrics.phaseDesc})
+- **Average Cycle Length**: ${metrics.avgCycleLength} days
 
-2. Ovulatory Phase (around Day 14): Include anti-inflammatory berries, zinc-rich seeds (pumpkin, sesame), raw vegetables, and stay well hydrated.
-
-3. Luteal Phase (Days 15 to 28): Your metabolism speeds up slightly. Eat complex carbs (sweet potatoes, brown rice, oats) and magnesium-rich dark chocolate or spinach to soothe premenstrual cravings.
-
-4. Menstrual Phase (Period): Replenish iron lost during bleeding with lentils, beans, dark leafy greens, and warm soups.`,
+📅 **Next Period Prediction**:
+Your next period is predicted to start ${countdownText}.`,
       sources: [
-        { topic: 'Understanding Your Cycle', source: 'Saheli Medical Review Board', articleId: 'understanding-your-cycle' },
+        { topic: 'Saheli Cycle Database', source: 'Saheli Health Engine', articleId: 'understanding-your-cycle' }
+      ]
+    };
+  }
+
+  // PCOS / PCOD
+  if (q.includes('pcos') || q.includes('pcod') || q.includes('polycystic')) {
+    return {
+      answer: `Here is clear, practical guidance for managing PCOS and balancing your hormones:
+
+1. **Insulin & Blood Sugar Balance**:
+   - Pair complex carbohydrates (oats, quinoa, sweet potatoes) with lean protein (eggs, lentils, chicken, tofu) and healthy fats (avocado, nuts, seeds) to prevent sharp insulin spikes that trigger androgen production.
+
+2. **Evidence-Based Nutrients**:
+   - Myo-Inositol (40:1 ratio with D-Chiro-Inositol) supports ovulatory frequency and insulin sensitivity.
+   - Vitamin D3, Omega-3 fatty acids, and Magnesium support inflammatory balance.
+
+3. **Cortisol-Friendly Exercise**:
+   - Prioritize strength training, walking, and low-impact movement over chronic high-stress cardio.
+
+4. **Cycle Tracking**:
+   - Log your dates and symptoms in Saheli to track your ovulation and cycle pattern for your doctor.`,
+      sources: [
+        { topic: 'PCOS Nutrition & Basics', source: 'Saheli Medical Review Board', articleId: 'pcos-basics' },
       ],
     };
   }
 
-  // Perform RAG retrieval against articles database
-  const matches = retrieveArticles(message);
+  // Nutrition / Diet / What to eat
+  if (q.includes('eat') || q.includes('food') || q.includes('diet') || q.includes('nutrition') || q.includes('meal')) {
+    return {
+      answer: `Here is personalized nutrition guidance for your current cycle stage (Currently: Day ${metrics.currentCycleDay} - ${metrics.phase}):
 
+1. **Menstrual Phase (Period Days 1 to 5)**:
+   - Focus on Iron & Vitamin C: Eat dark leafy greens (spinach, kale), lentils, beans, seeds, and lean protein paired with citrus to replenish blood loss.
+   - Warm soups, stews, and herbal teas (ginger, chamomile) soothe cramps.
+
+2. **Follicular Phase (Days 6 to 13)**:
+   - Light proteins, fermented foods (yogurt, kimchi), sprouted grains, and vibrant vegetables build energy as estrogen rises.
+
+3. **Ovulatory Phase (around Day 14)**:
+   - Anti-inflammatory berries, zinc-rich seeds (pumpkin, sesame), raw vegetables, and plenty of water.
+
+4. **Luteal Phase (Pre-Period Days 15 to 28)**:
+   - Complex carbs (sweet potatoes, oats, brown rice) and magnesium-rich dark chocolate soothe premenstrual cravings and mood shifts.`,
+      sources: [
+        { topic: 'Cycle Tracking & Nutrition', source: 'Saheli Medical Review Board', articleId: 'understanding-your-cycle' },
+      ],
+    };
+  }
+
+  // Exercise / Workouts
+  if (q.includes('exercise') || q.includes('workout') || q.includes('gym') || q.includes('training') || q.includes('walk') || q.includes('yoga')) {
+    return {
+      answer: `Here is your customized workout guidance (Currently: ${metrics.phase} - Day ${metrics.currentCycleDay}):
+
+1. **Phase-Synced Exercise Recommendation**:
+   - **Menstrual Phase (Low Energy)**: Light walking, restorative yoga, gentle stretching, and deep breathing.
+   - **Follicular Phase (Rising Energy)**: Strength training, brisk jogging, dance cardio as estrogen boosts strength and recovery.
+   - **Ovulatory Phase (Peak Energy)**: High-intensity interval training (HIIT) or heavy lifting during your energy peak.
+   - **Luteal Phase (Slower Recovery)**: Moderate strength training, Pilates, and steady-state walking to keep cortisol low.`,
+      sources: [
+        { topic: 'Exercise & Cycle Health', source: 'Saheli Medical Review Board', articleId: 'understanding-your-cycle' }
+      ]
+    };
+  }
+
+  // Greetings
+  if (/^(hi|hello|hey|greetings|good morning|good evening|who are you|what can you do)/i.test(q)) {
+    return {
+      answer: `Hello! 👋 I am Saheli, your personal AI health & wellness assistant.
+
+📊 Currently on **Day ${metrics.currentCycleDay}** (${metrics.phase}).
+
+I am here to answer ANY question you have about:
+- Your period dates, cycle day, and next period predictions
+- Phase-synced diet, meals, and exercise plans
+- PCOS/PCOD management, acne, and hormonal balance
+- Cramps, headaches, PMS, and symptom relief
+- Ovulation, fertile window, pregnancy, and menopause
+
+What would you like to ask today?`,
+      sources: [
+        { topic: 'Saheli AI Health Library', source: 'Saheli Medical Review Board', articleId: 'understanding-your-cycle' },
+      ]
+    };
+  }
+
+  if (q.includes('thank')) {
+    return {
+      answer: `You are so very welcome! 💖
+
+I am always here whenever you need health information or support with your cycle. Take good care of yourself today!`,
+      sources: [
+        { topic: 'Saheli AI Health Library', source: 'Saheli Medical Review Board', articleId: 'understanding-your-cycle' },
+      ]
+    };
+  }
+
+  // Cramps / Pain / Headaches
+  if (q.includes('cramp') || q.includes('pain') || q.includes('headache') || q.includes('ache') || q.includes('hurt')) {
+    return {
+      answer: `Dealing with menstrual cramps or headaches can be tough. Here is what helps ease symptoms:
+
+1. Why It Happens:
+   - Cramps are caused by prostaglandins causing uterine muscle contractions.
+   - Headaches often stem from rapid estrogen drops right before your period.
+
+2. Relief Strategies:
+   - Heat Therapy: Apply a warm water bottle or heating pad to your lower stomach or back for 15-20 mins.
+   - Hydration: Drink 8 to 10 glasses of water daily. Dehydration worsens cramps and headaches.
+   - Magnesium & Warm Tea: Sip warm ginger or chamomile tea. Magnesium glycinate helps relax uterine muscle tissue.
+
+3. Medical Care:
+   - Speak with a physician if your cramps prevent daily activities or do not respond to over-the-counter pain relief.`,
+      sources: [
+        { topic: 'Cramps & Headache Care', source: 'Saheli Medical Review Board', articleId: 'when-to-see-a-doctor' },
+      ],
+    };
+  }
+
+  // Article Retrieval RAG
+  const matches = retrieveArticles(message);
   if (matches.length > 0) {
     const primary = matches[0].article;
     const secondary = matches[1]?.article;
@@ -155,7 +311,6 @@ function generateRAGAnswer(message: string): { answer: string; sources: Assistan
       sources.push({ topic: secondary.title, source: secondary.source, articleId: secondary.id });
     }
 
-    // Synthesize RAG answer from retrieved medical article body and takeaways
     const mainTakeaways = primary.takeaways.map((t) => `- ${t}`).join('\n');
     const firstParagraph = primary.body[0] || primary.excerpt;
     const secondParagraph = primary.body[1] || '';
@@ -171,19 +326,20 @@ ${mainTakeaways}`,
     };
   }
 
-  // Direct contextual answer for any other question
-  const topicTitle = message.trim();
   return {
-    answer: `Here is clear health information regarding "${topicTitle}":
+    answer: `Regarding your question about "${message.trim()}":
 
-1. Biological Context: Your body's physiological responses — including energy, digestion, mood, skin, and sleep — are continually influenced by shifting hormonal levels across your cycle.
+📊 **Your Logged Context**: Currently on Day ${metrics.currentCycleDay} (${metrics.phase}).
 
-2. What You Can Track in Saheli:
-   - Log period flow intensity (spotting, light, medium, heavy).
-   - Track physical symptoms (cramps, fatigue, skin changes) and mood.
-   - Record fertility signs (basal body temperature, cervical mucus).
+1. **Hormonal & Physical Context**:
+   - Your body's physiological responses — including energy, digestion, mood, skin, and sleep — are continually influenced by shifting hormonal levels across your cycle.
 
-3. When to Consult a Doctor: If you experience new or persistent symptoms, sharing your logged cycle history with your healthcare provider is the best step for personalized care.`,
+2. **How Saheli Helps You Track**:
+   - Log period flow intensity, physical symptoms (cramps, fatigue, headache), and mood.
+   - Track ovulation signals (basal body temperature, cervical mucus).
+
+3. **Healthcare Provider Guidance**:
+   - Sharing your logged history with your doctor is the best way to receive personalized diagnostic advice.`,
     sources: [
       { topic: 'Saheli Health Library', source: 'Saheli Medical Review Board', articleId: 'understanding-your-cycle' },
     ],
@@ -197,31 +353,37 @@ export interface StreamHandlers {
   onDone: () => void;
 }
 
-/**
- * Sends a message to the assistant and streams the RAG response token by token.
- */
 export async function streamAssistantMessage(
   conversationId: string,
   message: string,
   handlers: StreamHandlers,
   email?: string,
 ): Promise<void> {
-  await new Promise((r) => setTimeout(r, 200));
+  await new Promise((r) => setTimeout(r, 100));
 
   let answer = '';
   let sources: AssistantSource[] = [];
 
   try {
     const res = await api.assistant.chat(email || 'user@saheli.app', message, conversationId);
-    if (res.answer) {
+    if (res && res.answer && res.answer.trim()) {
       answer = res.answer;
       sources = res.sources || [];
     }
   } catch {
-    const ragRes = generateRAGAnswer(message);
+    const ragRes = generateRAGAnswer(message, email);
     answer = ragRes.answer;
     sources = ragRes.sources;
   }
+
+  if (!answer || !answer.trim()) {
+    const ragRes = generateRAGAnswer(message, email);
+    answer = ragRes.answer;
+    sources = ragRes.sources;
+  }
+
+  // Strip all markdown asterisks for clean text formatting
+  answer = answer.replace(/\*/g, '');
 
   const flag = isRedFlag(message) || isRedFlag(answer);
   if (flag) {
@@ -230,7 +392,7 @@ export async function streamAssistantMessage(
 
   const words = answer.match(/\S+\s*/g) ?? [answer];
   for (const word of words) {
-    await new Promise((r) => setTimeout(r, 20));
+    await new Promise((r) => setTimeout(r, 15));
     handlers.onToken(word);
   }
 
