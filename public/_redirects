@@ -1,0 +1,2 @@
+/api/*  https://saheli-dfmb.onrender.com/api/:splat  200
+/*      /index.html                            200
