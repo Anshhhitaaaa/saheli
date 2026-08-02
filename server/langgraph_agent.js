@@ -52,7 +52,7 @@ function calculateUserCycleMetrics(userContext) {
     prevIsFlow = isFlow;
   }
 
-  const lastPeriodStart = profile.lastPeriodStart || (starts.length > 0 ? starts[starts.length - 1] : '2026-07-15');
+  const lastPeriodStart = starts.length > 0 ? starts[starts.length - 1] : (profile.lastPeriodStart || '2026-07-25');
 
   let totalDays = 0;
   let cycleCount = 0;

@@ -464,7 +464,21 @@ const server = http.createServer(async (req, res) => {
       `, [cleanEmail, date, flow, note]);
 
       if (flow && flow !== 'none') {
-        await pool.query('UPDATE users SET last_period_start = $1 WHERE email = $2', [date, cleanEmail]).catch(() => {});
+        const allLogsRes = await pool.query('SELECT date, flow FROM cycle_logs WHERE email = $1 AND flow IS NOT NULL AND flow != \'none\' ORDER BY date ASC', [cleanEmail]);
+        const sortedLogs = allLogsRes.rows;
+        const starts = [];
+        let prevIsFlow = false;
+        for (const l of sortedLogs) {
+          const isFlow = l.flow && l.flow !== 'none';
+          if (isFlow && !prevIsFlow) {
+            starts.push(l.date);
+          }
+          prevIsFlow = isFlow;
+        }
+        if (starts.length > 0) {
+          const trueLastStart = starts[starts.length - 1];
+          await pool.query('UPDATE users SET last_period_start = $1 WHERE email = $2', [trueLastStart, cleanEmail]).catch(() => {});
+        }
       }
       const updated = await pool.query('SELECT * FROM cycle_logs WHERE email = $1 ORDER BY date DESC', [cleanEmail]);
       return sendJSON(res, 200, { logs: updated.rows.map(mapCycleLog) });
