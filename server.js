@@ -617,7 +617,69 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 200, { meds: updated.rows.map(mapMedication) });
     }
 
-    // --- LANGGRAPH + DATA-DRIVEN RAG ASSISTANT ROUTE ---
+    // --- LANGGRAPH + DATA-DRIVEN RAG ASSISTANT ROUTES ---
+    if (pathname === '/api/assistant/history' && req.method === 'GET') {
+      const email = url.searchParams.get('email');
+      if (!email || !pool) return sendJSON(res, 200, { conversations: [] });
+      const cleanEmail = email.toLowerCase().trim();
+      const histRes = await pool.query(`
+        SELECT conversation_id, MIN(created_at) as created_at, MAX(created_at) as last_activity, (ARRAY_AGG(user_message ORDER BY created_at ASC))[1] as title, COUNT(*) as msg_count
+        FROM assistant_chats
+        WHERE email = $1
+        GROUP BY conversation_id
+        ORDER BY MAX(created_at) DESC
+      `, [cleanEmail]).catch(() => ({ rows: [] }));
+
+      const conversations = histRes.rows.map(r => ({
+        id: r.conversation_id,
+        title: r.title ? (r.title.length > 32 ? r.title.slice(0, 32) + '...' : r.title) : 'Chat',
+        createdAt: r.created_at,
+        lastActivity: r.last_activity,
+        msgCount: parseInt(r.msg_count, 10) || 1
+      }));
+      return sendJSON(res, 200, { conversations });
+    }
+
+    if (pathname === '/api/assistant/chat' && req.method === 'GET') {
+      const email = url.searchParams.get('email');
+      const conversationId = url.searchParams.get('conversationId');
+      if (!email || !conversationId || !pool) return sendJSON(res, 200, { messages: [] });
+      const cleanEmail = email.toLowerCase().trim();
+      const msgsRes = await pool.query(`
+        SELECT * FROM assistant_chats
+        WHERE email = $1 AND conversation_id = $2
+        ORDER BY created_at ASC
+      `, [cleanEmail, conversationId]).catch(() => ({ rows: [] }));
+
+      const messages = [];
+      msgsRes.rows.forEach(r => {
+        messages.push({
+          id: 'u_' + r.id,
+          role: 'user',
+          content: r.user_message,
+          createdAt: r.created_at
+        });
+        messages.push({
+          id: 'b_' + r.id,
+          role: 'assistant',
+          content: r.bot_response,
+          sources: typeof r.sources === 'string' ? JSON.parse(r.sources) : (r.sources || []),
+          safetyFlag: r.safety_flag,
+          createdAt: r.created_at
+        });
+      });
+      return sendJSON(res, 200, { messages });
+    }
+
+    if (pathname === '/api/assistant/chat' && req.method === 'DELETE') {
+      const email = url.searchParams.get('email');
+      const conversationId = url.searchParams.get('conversationId');
+      if (!email || !conversationId || !pool) return sendJSON(res, 200, { success: true });
+      const cleanEmail = email.toLowerCase().trim();
+      await pool.query('DELETE FROM assistant_chats WHERE email = $1 AND conversation_id = $2', [cleanEmail, conversationId]).catch(() => {});
+      return sendJSON(res, 200, { success: true });
+    }
+
     if (pathname === '/api/assistant/chat' && req.method === 'POST') {
       const body = await parseJSONBody(req);
       const { email, message, conversationId } = body;

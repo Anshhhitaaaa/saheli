@@ -125,6 +125,14 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ email, message, conversationId }),
       }),
+    getHistory: (email: string) =>
+      request<{ conversations: any[] }>(`/api/assistant/history?email=${encodeURIComponent(email)}`),
+    getMessages: (email: string, conversationId: string) =>
+      request<{ messages: any[] }>(`/api/assistant/chat?email=${encodeURIComponent(email)}&conversationId=${encodeURIComponent(conversationId)}`),
+    deleteChat: (email: string, conversationId: string) =>
+      request<{ success: boolean }>(`/api/assistant/chat?email=${encodeURIComponent(email)}&conversationId=${encodeURIComponent(conversationId)}`, {
+        method: 'DELETE',
+      }),
   },
 
   // Notifications API
