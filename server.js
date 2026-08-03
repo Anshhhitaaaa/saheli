@@ -47,6 +47,7 @@ async function initDB() {
       CREATE TABLE IF NOT EXISTS users (
         id VARCHAR(64) PRIMARY KEY,
         name TEXT NOT NULL,
+        username TEXT UNIQUE,
         email TEXT UNIQUE NOT NULL,
         password TEXT,
         focus TEXT DEFAULT 'general',
@@ -57,6 +58,7 @@ async function initDB() {
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       );
 
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS has_completed_onboarding BOOLEAN DEFAULT TRUE;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS hascompletedonboarding BOOLEAN DEFAULT TRUE;
 
@@ -145,6 +147,10 @@ async function initDB() {
       );
     `);
 
+    await pool.query(`
+      UPDATE users SET username = LOWER(SPLIT_PART(email, '@', 1)) WHERE username IS NULL OR username = '';
+    `).catch(() => {});
+
     await seedInitialData();
   } catch (err) {
     console.error(' PostgreSQL Connection Error:', err.message);
@@ -188,9 +194,11 @@ async function seedInitialData() {
 // Entity Mappers
 function mapUser(row) {
   if (!row) return null;
+  const derivedUsername = row.username || (row.email ? row.email.split('@')[0] : 'user');
   return {
     id: row.id,
     name: row.name,
+    username: derivedUsername,
     email: row.email,
     password: row.password,
     focus: row.focus,
@@ -342,11 +350,15 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/api/auth/signup' && req.method === 'POST') {
       const body = await parseJSONBody(req);
-      const { name, email, password, focus = 'general' } = body;
+      const { name, username, email, password, focus = 'general' } = body;
       const cleanEmail = (email || '').toLowerCase().trim();
+      const rawUsername = (username || '').toLowerCase().trim().replace(/^@/, '');
 
       if (!name || !name.trim()) {
         return sendJSON(res, 400, { error: 'Please enter your name.' });
+      }
+      if (!rawUsername || !/^[a-z0-9_]{3,20}$/.test(rawUsername)) {
+        return sendJSON(res, 400, { error: 'Username must be 3-20 characters long and contain only letters, numbers, or underscores.' });
       }
       if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
         return sendJSON(res, 400, { error: 'Please enter a valid email address.' });
@@ -355,14 +367,20 @@ const server = http.createServer(async (req, res) => {
         return sendJSON(res, 400, { error: 'Password must be at least 6 characters.' });
       }
 
-      const existing = await pool.query('SELECT * FROM users WHERE email = $1', [cleanEmail]);
-      if (existing.rows.length > 0) {
+      const existingUser = await pool.query('SELECT * FROM users WHERE LOWER(username) = $1', [rawUsername]);
+      if (existingUser.rows.length > 0) {
+        return sendJSON(res, 400, { error: `Username '@${rawUsername}' is already taken. Please choose another username.` });
+      }
+
+      const existingEmail = await pool.query('SELECT * FROM users WHERE LOWER(email) = $1', [cleanEmail]);
+      if (existingEmail.rows.length > 0) {
         return sendJSON(res, 400, { error: 'An account with this email address already exists. Please log in.' });
       }
 
       const newUser = {
         id: 'u_' + Date.now(),
         name: name.trim(),
+        username: rawUsername,
         email: cleanEmail,
         password,
         focus,
@@ -372,9 +390,9 @@ const server = http.createServer(async (req, res) => {
       };
 
       await pool.query(
-        `INSERT INTO users (id, name, email, password, focus, pregnancy_mode, pregnancy_week, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [newUser.id, newUser.name, newUser.email, newUser.password, newUser.focus, newUser.pregnancyMode, newUser.pregnancyWeek, newUser.createdAt]
+        `INSERT INTO users (id, name, username, email, password, focus, pregnancy_mode, pregnancy_week, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [newUser.id, newUser.name, newUser.username, newUser.email, newUser.password, newUser.focus, newUser.pregnancyMode, newUser.pregnancyWeek, newUser.createdAt]
       );
 
       delete newUser.password;
@@ -383,16 +401,16 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/api/auth/login' && req.method === 'POST') {
       const body = await parseJSONBody(req);
-      const { email, password } = body;
-      const cleanEmail = (email || '').toLowerCase().trim();
+      const { usernameOrEmail, email, username, password } = body;
+      const input = (usernameOrEmail || email || username || '').toLowerCase().trim().replace(/^@/, '');
 
-      if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
-        return sendJSON(res, 400, { error: 'Please enter a valid email address.' });
+      if (!input) {
+        return sendJSON(res, 400, { error: 'Please enter your username or email address.' });
       }
 
-      const result = await pool.query('SELECT * FROM users WHERE email = $1', [cleanEmail]);
+      const result = await pool.query('SELECT * FROM users WHERE LOWER(username) = $1 OR LOWER(email) = $1', [input]);
       if (result.rows.length === 0) {
-        return sendJSON(res, 400, { error: 'No account found with this email address. Please sign up.' });
+        return sendJSON(res, 400, { error: 'No account found with this username or email. Please sign up.' });
       }
       const userRow = result.rows[0];
       if (userRow.password && password && userRow.password !== password) {
@@ -404,6 +422,27 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 200, { user, token: 'token_' + user.id });
     }
 
+    if (pathname === '/api/auth/me' && req.method === 'GET') {
+      const email = url.searchParams.get('email');
+      const username = url.searchParams.get('username');
+      if (!email && !username) return sendJSON(res, 400, { error: 'Email or username required' });
+
+      let result;
+      if (email) {
+        result = await pool.query('SELECT * FROM users WHERE LOWER(email) = $1', [email.toLowerCase().trim()]);
+      } else {
+        result = await pool.query('SELECT * FROM users WHERE LOWER(username) = $1', [username.toLowerCase().trim().replace(/^@/, '')]);
+      }
+
+      if (result.rows.length === 0) {
+        return sendJSON(res, 404, { error: 'User not found' });
+      }
+
+      const freshUser = mapUser(result.rows[0]);
+      delete freshUser.password;
+      return sendJSON(res, 200, { user: freshUser });
+    }
+
     if (pathname === '/api/auth/update' && req.method === 'POST') {
       const body = await parseJSONBody(req);
       const { email, patch } = body;
@@ -411,11 +450,27 @@ const server = http.createServer(async (req, res) => {
 
       if (!cleanEmail) return sendJSON(res, 400, { error: 'Email is required' });
 
+      if (patch && patch.username) {
+        const rawUsername = patch.username.toLowerCase().trim().replace(/^@/, '');
+        if (!/^[a-z0-9_]{3,20}$/.test(rawUsername)) {
+          return sendJSON(res, 400, { error: 'Username must be 3-20 characters long (letters, numbers, or underscores).' });
+        }
+        const existing = await pool.query(
+          'SELECT * FROM users WHERE LOWER(username) = $1 AND LOWER(email) != $2',
+          [rawUsername, cleanEmail]
+        );
+        if (existing.rows.length > 0) {
+          return sendJSON(res, 400, { error: `Username '@${rawUsername}' is already taken. Please choose another handle.` });
+        }
+        patch.username = rawUsername;
+      }
+
       const setClause = [];
       const values = [cleanEmail];
       let idx = 2;
       const fieldMapping = {
         name: 'name',
+        username: 'username',
         focus: 'focus',
         pregnancyMode: 'pregnancy_mode',
         pregnancyWeek: 'pregnancy_week',
@@ -805,10 +860,85 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 201, { shares: resShares.rows.map(mapShareLink) });
     }
 
+    if (pathname === '/api/sharing/update' && req.method === 'POST') {
+      const body = await parseJSONBody(req);
+      const { email, id, permissions, active } = body;
+      if (!email || !id) return sendJSON(res, 400, { error: 'Email and share ID required' });
+      const cleanEmail = email.toLowerCase().trim();
+
+      if (permissions !== undefined) {
+        await pool.query('UPDATE share_links SET permissions = $1 WHERE id = $2 AND email = $3', [JSON.stringify(permissions), id, cleanEmail]);
+      }
+      if (active !== undefined) {
+        await pool.query('UPDATE share_links SET active = $1 WHERE id = $2 AND email = $3', [active, id, cleanEmail]);
+      }
+
+      const resShares = await pool.query('SELECT * FROM share_links WHERE email = $1 ORDER BY created_at DESC', [cleanEmail]);
+      return sendJSON(res, 200, { shares: resShares.rows.map(mapShareLink) });
+    }
+
+    if (pathname === '/api/sharing/view' && req.method === 'GET') {
+      const shareId = url.searchParams.get('id');
+      if (!shareId) return sendJSON(res, 400, { error: 'Share ID required' });
+
+      const shareRes = await pool.query('SELECT * FROM share_links WHERE id = $1', [shareId]);
+      if (shareRes.rows.length === 0) {
+        return sendJSON(res, 404, { error: 'Share link not found' });
+      }
+
+      const share = mapShareLink(shareRes.rows[0]);
+      if (!share.active) {
+        return sendJSON(res, 200, { share, active: false, message: 'This share link has been revoked or paused by the user.' });
+      }
+
+      const userRes = await pool.query('SELECT * FROM users WHERE email = $1', [share.email]);
+      const userObj = userRes.rows.length > 0 ? mapUser(userRes.rows[0]) : null;
+
+      let cycleData = null;
+      let symptomData = null;
+      let pregnancyData = null;
+      let insightsData = null;
+
+      if (share.permissions.cycle) {
+        const cycleRes = await pool.query('SELECT * FROM cycle_logs WHERE email = $1 ORDER BY date DESC LIMIT 30', [share.email]);
+        cycleData = cycleRes.rows.map(mapCycleLog);
+      }
+
+      if (share.permissions.symptoms) {
+        const sympRes = await pool.query('SELECT * FROM symptom_logs WHERE email = $1 ORDER BY date DESC LIMIT 30', [share.email]);
+        symptomData = sympRes.rows.map(mapSymptomLog);
+      }
+
+      if (share.permissions.pregnancy && userObj?.pregnancyMode) {
+        pregnancyData = {
+          pregnancyMode: userObj.pregnancyMode,
+          pregnancyWeek: userObj.pregnancyWeek || 12,
+        };
+      }
+
+      if (share.permissions.insights) {
+        insightsData = {
+          focus: userObj?.focus || 'general',
+          lastPeriodStart: userObj?.lastPeriodStart || null,
+        };
+      }
+
+      return sendJSON(res, 200, {
+        active: true,
+        share,
+        userName: userObj ? (userObj.username ? `@${userObj.username}` : userObj.name) : 'Saheli Member',
+        cycleData,
+        symptomData,
+        pregnancyData,
+        insightsData,
+      });
+    }
+
     // --- NOTIFICATIONS API ---
     if (pathname === '/api/notifications' && req.method === 'GET') {
       const email = url.searchParams.get('email');
       if (!email) return sendJSON(res, 400, { error: 'Email required' });
+      const cleanEmail = email.toLowerCase().trim();
 
       // Auto-insert daily mood check-in notification for today
       const todayStr = new Date().toISOString().slice(0, 10);

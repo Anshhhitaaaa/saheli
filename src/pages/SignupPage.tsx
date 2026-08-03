@@ -23,17 +23,26 @@ export function SignupPage() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [focus, setFocus] = useState<OnboardingFocus>('general');
   const [isTeen, setIsTeen] = useState(false);
-  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; username?: string; email?: string; password?: string }>({});
   const [loading, setLoading] = useState(false);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const next: typeof errors = {};
-    if (!name) next.name = 'Tell us what to call you.';
+    if (!name.trim()) next.name = 'Tell us what to call you.';
+    
+    const cleanUser = username.trim().replace(/^@/, '');
+    if (!cleanUser) {
+      next.username = 'Username is required.';
+    } else if (!/^[a-zA-Z0-9_]{3,20}$/.test(cleanUser)) {
+      next.username = 'Username must be 3-20 characters (letters, numbers, underscores).';
+    }
+
     if (!email) next.email = 'Email is required.';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) next.email = 'Enter a valid email.';
     if (!password) next.password = 'Password is required.';
@@ -42,14 +51,21 @@ export function SignupPage() {
     if (Object.keys(next).length) return;
     setLoading(true);
     try {
-      await signUp({ name, email, password, focus });
+      await signUp({ name, username: cleanUser, email, password, focus });
       if (isTeen) {
         navigate('/teen');
       } else {
         navigate('/dashboard');
       }
     } catch (err: any) {
-      setErrors({ email: err.message || 'Could not create account. Try again.' });
+      const msg = err.message || '';
+      if (msg.toLowerCase().includes('username')) {
+        setErrors({ username: msg });
+      } else if (msg.toLowerCase().includes('email')) {
+        setErrors({ email: msg });
+      } else {
+        setErrors({ email: msg || 'Could not create account. Try again.' });
+      }
     } finally {
       setLoading(false);
     }
@@ -65,6 +81,15 @@ export function SignupPage() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           error={errors.name}
+        />
+        <Input
+          label="Unique Username"
+          placeholder="e.g. anshita or @anshita"
+          leftIcon={<span className="text-base font-700 text-sand-400">@</span>}
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          error={errors.username}
+          hint="Your unique handle for posts & community discussions."
         />
         <Input
           label="Email"

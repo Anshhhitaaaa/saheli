@@ -12,6 +12,7 @@ export type OnboardingFocus =
 export interface SaheliUser {
   id: string;
   name: string;
+  username: string;
   email: string;
   focus: OnboardingFocus;
   pregnancyMode: boolean;
@@ -26,10 +27,11 @@ export interface SaheliUser {
 interface AuthContextValue {
   user: SaheliUser | null;
   loading: boolean;
-  signIn: (email: string, password?: string) => Promise<void>;
-  signUp: (params: { name: string; email: string; password?: string; focus?: OnboardingFocus }) => Promise<void>;
+  signIn: (usernameOrEmail: string, password?: string) => Promise<void>;
+  signUp: (params: { name: string; username: string; email: string; password?: string; focus?: OnboardingFocus }) => Promise<void>;
   signOut: () => void;
   updateUser: (patch: Partial<SaheliUser>) => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -41,6 +43,7 @@ const personas: Record<string, SaheliUser> = {
   'new@saheli.app': {
     id: 'u_new',
     name: 'Aanya',
+    username: 'aanya_health',
     email: 'new@saheli.app',
     focus: 'general',
     pregnancyMode: false,
@@ -49,6 +52,7 @@ const personas: Record<string, SaheliUser> = {
   'pcos@saheli.app': {
     id: 'u_pcos',
     name: 'Meera',
+    username: 'meera_pcos',
     email: 'pcos@saheli.app',
     focus: 'pcos',
     pregnancyMode: false,
@@ -60,6 +64,7 @@ const personas: Record<string, SaheliUser> = {
   'pregnant@saheli.app': {
     id: 'u_preg',
     name: 'Ishita',
+    username: 'ishita_preg',
     email: 'pregnant@saheli.app',
     focus: 'pregnancy',
     pregnancyMode: true,
@@ -75,46 +80,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SaheliUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) setUser(JSON.parse(stored));
-    } catch {
-      // ignore
-    }
-    setLoading(false);
-  }, []);
-
   const persist = (u: SaheliUser | null) => {
     setUser(u);
     if (u) localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
     else localStorage.removeItem(STORAGE_KEY);
   };
 
+  const refreshUser = async () => {
+    if (user?.email) {
+      try {
+        const res = await api.auth.getProfile(user.email);
+        if (res && res.user) {
+          persist(res.user);
+        }
+      } catch {}
+    }
+  };
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setUser(parsed);
+        if (parsed.email) {
+          api.auth.getProfile(parsed.email).then((res) => {
+            if (res && res.user) {
+              persist(res.user);
+            }
+          }).catch(() => {});
+        }
+      }
+    } catch {
+      // ignore
+    }
+    setLoading(false);
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       loading,
-      signIn: async (email, password) => {
+      signIn: async (usernameOrEmail, password) => {
         try {
-          const res = await api.auth.login(email, password);
+          const res = await api.auth.login(usernameOrEmail, password);
           persist(res.user);
         } catch (err: any) {
-          throw new Error(err.message || 'Invalid email or password.');
+          throw new Error(err.message || 'Invalid username/email or password.');
         }
       },
-      signUp: async ({ name, email, password, focus = 'general' }) => {
+      signUp: async ({ name, username, email, password, focus = 'general' }) => {
         try {
-          const res = await api.auth.signup({ name, email, password, focus });
+          const res = await api.auth.signup({ name, username, email, password, focus });
           persist(res.user);
         } catch (err: any) {
           throw new Error(err.message || 'Could not create account.');
         }
       },
       signOut: () => persist(null),
-      updateUser: (patch) => {
+      updateUser: async (patch) => {
         if (user) {
-          api.auth.update(user.email, patch).catch(() => {});
+          const res = await api.auth.update(user.email, patch);
+          if (res && res.user) {
+            persist(res.user);
+            return;
+          }
         }
         setUser((prev) => {
           if (!prev) return prev;
@@ -123,6 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return next;
         });
       },
+      refreshUser,
     }),
     [user, loading],
   );

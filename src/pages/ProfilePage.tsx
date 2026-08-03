@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ShieldCheck, Download, Trash2, Bell, User, Focus, GraduationCap, Share2, FileText, Pill, Lock, EyeOff } from 'lucide-react';
@@ -57,9 +57,10 @@ const privacySections = [
 ];
 
 export function ProfilePage() {
-  const { user, updateUser, signOut } = useAuth();
+  const { user, updateUser, refreshUser, signOut } = useAuth();
   const { settings, updateSettings } = useNotifications();
   const [name, setName] = useState(user?.name ?? '');
+  const [username, setUsername] = useState(user?.username ?? '');
   const [focus, setFocus] = useState<OnboardingFocus>(user?.focus ?? 'general');
   const [openSection, setOpenSection] = useState<number | null>(0);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -67,12 +68,44 @@ export function ProfilePage() {
   const [notifSavedFlash, setNotifSavedFlash] = useState(false);
   const [aiConsented, setAiConsented] = useState(() => localStorage.getItem('saheli-ai-consent') === 'true');
 
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    refreshUser();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      setName(user.name ?? '');
+      setUsername(user.username ?? '');
+      setFocus(user.focus ?? 'general');
+    }
+  }, [user]);
+
   if (!user) return null;
 
-  const saveIdentity = () => {
-    updateUser({ name, focus, pregnancyMode: focus === 'pregnancy' });
-    setSavedFlash(true);
-    setTimeout(() => setSavedFlash(false), 1600);
+  const saveIdentity = async () => {
+    setUsernameError(null);
+    const cleanUser = username.trim().replace(/^@/, '');
+    if (!cleanUser) {
+      setUsernameError('Username is required.');
+      return;
+    }
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(cleanUser)) {
+      setUsernameError('Username must be 3-20 characters long (letters, numbers, or underscores).');
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateUser({ name, username: cleanUser, focus, pregnancyMode: focus === 'pregnancy' });
+      setSavedFlash(true);
+      setTimeout(() => setSavedFlash(false), 1600);
+    } catch (err: any) {
+      setUsernameError(err.message || 'Could not update username.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleCategory = (catKey: keyof NotificationCategories) => {
@@ -113,11 +146,23 @@ export function ProfilePage() {
       <div className="mt-8 space-y-6">
         {/* Identity */}
         <Card>
-          <h2 className="flex items-center gap-2 font-600 text-sand-900 dark:text-sand-100">
-            <User className="h-5 w-5 text-clay-500" /> Identity
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 font-600 text-sand-900 dark:text-sand-100">
+              <User className="h-5 w-5 text-clay-500" /> Identity
+            </h2>
+            <Button size="sm" variant="outline" onClick={() => refreshUser()}>
+              Sync with Database
+            </Button>
+          </div>
           <div className="mt-4 space-y-4">
             <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} />
+            <Input
+              label="Username Handle"
+              value={username}
+              onChange={(e) => { setUsername(e.target.value); setUsernameError(null); }}
+              error={usernameError || undefined}
+              hint="Your unique public handle for community posts & profile."
+            />
             <Input label="Email" value={user.email} disabled hint="Email cannot be changed." />
             <div>
               <p className="mb-2 flex items-center gap-2 text-sm font-600 text-sand-800 dark:text-sand-200">
@@ -132,7 +177,7 @@ export function ProfilePage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Button onClick={saveIdentity}>Save changes</Button>
+              <Button onClick={saveIdentity} loading={saving}>Save changes</Button>
               <AnimatePresence>
                 {savedFlash && (
                   <motion.span initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="text-sm font-600 text-success">

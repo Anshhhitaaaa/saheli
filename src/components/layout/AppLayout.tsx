@@ -130,10 +130,10 @@ export function AppLayout() {
         <div className="border-t border-sand-200/60 p-3 dark:border-sand-700/60">
           <div className="flex items-center gap-2 rounded-xl px-3 py-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-clay-100 text-sm font-600 text-clay-700 dark:bg-clay-800/50 dark:text-clay-200">
-              {user.name.charAt(0).toUpperCase()}
+              {(user.username || user.name).charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-600 text-sand-800 dark:text-sand-100">{user.name}</p>
+              <p className="truncate text-sm font-600 text-sand-800 dark:text-sand-100">@{user.username || user.name}</p>
               <p className="truncate text-xs text-sand-500 dark:text-sand-400">{user.email}</p>
             </div>
           </div>
@@ -180,7 +180,7 @@ export function AppLayout() {
         {/* Desktop top bar */}
         <header className="sticky top-0 z-20 hidden h-16 items-center justify-between border-b border-sand-200/60 bg-sand-50/80 px-6 backdrop-blur-md dark:border-sand-700/60 dark:bg-sand-900/80 md:flex">
           <p className="text-sm text-sand-500 dark:text-sand-400">
-            {greeting()}, {user.name.split(' ')[0]}
+            {greeting()}, <span className="font-600 text-sand-800 dark:text-sand-200">@{user.username || user.name}</span>
           </p>
           <div className="flex items-center gap-2">
             <button

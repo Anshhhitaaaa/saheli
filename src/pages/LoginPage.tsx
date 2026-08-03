@@ -9,23 +9,22 @@ import { useAuth } from '../context/AuthContext';
 export function LoginPage() {
   const { signIn } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ usernameOrEmail?: string; password?: string }>({});
   const [loading, setLoading] = useState(false);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const next: typeof errors = {};
-    if (!email) next.email = 'Email is required.';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) next.email = 'Enter a valid email.';
+    if (!usernameOrEmail.trim()) next.usernameOrEmail = 'Username or Email is required.';
     if (!password) next.password = 'Password is required.';
     else if (password.length < 6) next.password = 'At least 6 characters.';
     setErrors(next);
     if (Object.keys(next).length) return;
     setLoading(true);
     try {
-      await signIn(email, password);
+      await signIn(usernameOrEmail.trim(), password);
       navigate('/dashboard');
     } catch (err: any) {
       setErrors({ password: err.message || 'Could not sign in. Please check your credentials.' });
@@ -38,14 +37,12 @@ export function LoginPage() {
     <AuthLayout title="Welcome back" subtitle="Log in to continue your tracking.">
       <form onSubmit={submit} className="space-y-4" noValidate>
         <Input
-          label="Email"
-          type="email"
-          placeholder="you@example.com"
-          leftIcon={<Mail className="h-5 w-5" />}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          error={errors.email}
-          success={!errors.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)}
+          label="Username or Email"
+          placeholder="e.g. @anshita or you@example.com"
+          leftIcon={<span className="text-base font-700 text-sand-400">@</span>}
+          value={usernameOrEmail}
+          onChange={(e) => setUsernameOrEmail(e.target.value)}
+          error={errors.usernameOrEmail}
         />
         <Input
           label="Password"
@@ -68,8 +65,8 @@ export function LoginPage() {
         </Link>
       </p>
       <p className="mt-3 rounded-lg bg-sand-100/70 px-3 py-2 text-xs text-sand-500 dark:bg-sand-800/50 dark:text-sand-400">
-        Demo: use <code className="font-600">pcos@saheli.app</code>,{' '}
-        <code className="font-600">pregnant@saheli.app</code>, or any email.
+        Demo accounts: <code className="font-600">@meera_pcos</code>,{' '}
+        <code className="font-600">@ishita_preg</code>, or your unique username.
       </p>
     </AuthLayout>
   );

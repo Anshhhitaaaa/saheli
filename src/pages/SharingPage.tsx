@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UserPlus, Eye, EyeOff, Check, X, Shield, Copy } from 'lucide-react';
+import { UserPlus, Eye, EyeOff, Check, X, Shield, Copy, ExternalLink } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
@@ -28,43 +28,71 @@ export function SharingPage() {
   const [form, setForm] = useState({ name: '', relationship: '', cycle: true, symptoms: false, pregnancy: false, insights: true });
   const [copied, setCopied] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchShares = async () => {
     if (user?.email) {
-      api.sharing.get(user.email).then((res) => {
-        if (res.shares && res.shares.length > 0) {
+      try {
+        const res = await api.sharing.get(user.email);
+        if (res && res.shares && res.shares.length > 0) {
           setShares(res.shares);
         }
-      }).catch(() => {});
+      } catch {}
     }
+  };
+
+  useEffect(() => {
+    fetchShares();
   }, [user?.email]);
 
-  const add = () => {
+  const add = async () => {
     if (!form.name.trim()) return;
-    const s: ShareLink = {
-      id: 's' + Date.now(),
-      name: form.name,
-      relationship: form.relationship || 'Caregiver',
+    const tempId = 's_' + Date.now();
+    const newShare: ShareLink = {
+      id: tempId,
+      name: form.name.trim(),
+      relationship: form.relationship.trim() || 'Caregiver',
       permissions: { cycle: form.cycle, symptoms: form.symptoms, pregnancy: form.pregnancy, insights: form.insights },
       active: true,
     };
-    setShares((prev) => [...prev, s]);
+    setShares((prev) => [newShare, ...prev]);
     setForm({ name: '', relationship: '', cycle: true, symptoms: false, pregnancy: false, insights: true });
     setAdding(false);
 
     if (user?.email) {
-      api.sharing.create(user.email, s.name, s.relationship, s.permissions).then((res) => {
-        if (res.shares) setShares(res.shares);
-      }).catch(() => {});
+      try {
+        const res = await api.sharing.create(user.email, newShare.name, newShare.relationship, newShare.permissions);
+        if (res && res.shares && res.shares.length > 0) setShares(res.shares);
+      } catch {}
     }
   };
 
-  const togglePerm = (id: string, key: keyof ShareLink['permissions']) =>
-    setShares((prev) => prev.map((s) => (s.id === id ? { ...s, permissions: { ...s.permissions, [key]: !s.permissions[key] } } : s)));
+  const togglePerm = async (id: string, key: keyof ShareLink['permissions']) => {
+    const target = shares.find((s) => s.id === id);
+    if (!target) return;
+    const updatedPerms = { ...target.permissions, [key]: !target.permissions[key] };
+    setShares((prev) => prev.map((s) => (s.id === id ? { ...s, permissions: updatedPerms } : s)));
 
-  const revoke = (id: string) => setShares((prev) => prev.map((s) => (s.id === id ? { ...s, active: false } : s)));
+    if (user?.email) {
+      try {
+        const res = await api.sharing.update(user.email, id, { permissions: updatedPerms });
+        if (res && res.shares) setShares(res.shares);
+      } catch {}
+    }
+  };
+
+  const revoke = async (id: string) => {
+    setShares((prev) => prev.map((s) => (s.id === id ? { ...s, active: false } : s)));
+
+    if (user?.email) {
+      try {
+        const res = await api.sharing.update(user.email, id, { active: false });
+        if (res && res.shares) setShares(res.shares);
+      } catch {}
+    }
+  };
 
   const copyLink = (id: string) => {
-    navigator.clipboard?.writeText(`https://saheli.app/share/${id}`).catch(() => {});
+    const shareUrl = `${window.location.origin}/share/${id}`;
+    navigator.clipboard?.writeText(shareUrl).catch(() => {});
     setCopied(id);
     setTimeout(() => setCopied(null), 1600);
   };
@@ -111,7 +139,7 @@ export function SharingPage() {
             <Card className="mt-4">
               <div className="space-y-4">
                 <Input label="Name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Arjun" />
-                <Input label="Relationship" value={form.relationship} onChange={(e) => setForm((f) => ({ ...f, relationship: e.target.value }))} placeholder="e.g. Partner, Parent" />
+                <Input label="Relationship" value={form.relationship} onChange={(e) => setForm((f) => ({ ...f, relationship: e.target.value }))} placeholder="e.g. Partner, Parent, Doctor" />
                 <div>
                   <p className="mb-2 text-sm font-600 text-sand-800 dark:text-sand-200">What can they see?</p>
                   <div className="space-y-2">
@@ -130,7 +158,7 @@ export function SharingPage() {
                     ))}
                   </div>
                 </div>
-                <Button onClick={add} leftIcon={<Check className="h-4 w-4" />}>Create invite</Button>
+                <Button onClick={add} leftIcon={<Check className="h-4 w-4" />}>Create invite link</Button>
               </div>
             </Card>
           </motion.div>
@@ -171,10 +199,15 @@ export function SharingPage() {
                 </div>
                 <div className="mt-4 flex items-center gap-2">
                   <Button size="sm" variant="outline" leftIcon={copied === s.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} onClick={() => copyLink(s.id)} disabled={!s.active}>
-                    {copied === s.id ? 'Link copied' : 'Copy share link'}
+                    {copied === s.id ? 'Link copied!' : 'Copy share link'}
                   </Button>
+                  <a href={`/share/${s.id}`} target="_blank" rel="noopener noreferrer">
+                    <Button size="sm" variant="ghost" leftIcon={<ExternalLink className="h-4 w-4" />}>
+                      Preview
+                    </Button>
+                  </a>
                   {s.active && (
-                    <Button size="sm" variant="ghost" leftIcon={<X className="h-4 w-4" />} onClick={() => revoke(s.id)} className="text-danger hover:bg-danger/10">
+                    <Button size="sm" variant="ghost" leftIcon={<X className="h-4 w-4" />} onClick={() => revoke(s.id)} className="ml-auto text-danger hover:bg-danger/10">
                       Revoke
                     </Button>
                   )}

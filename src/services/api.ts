@@ -25,21 +25,23 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 export const api = {
   // Auth API
   auth: {
-    signup: (data: { name: string; email: string; password?: string; focus?: string }) =>
+    signup: (data: { name: string; username: string; email: string; password?: string; focus?: string }) =>
       request<{ user: any; token: string }>('/api/auth/signup', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
-    login: (email: string, password?: string) =>
+    login: (usernameOrEmail: string, password?: string) =>
       request<{ user: any; token: string }>('/api/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ usernameOrEmail, email: usernameOrEmail, username: usernameOrEmail, password }),
       }),
     update: (email: string, patch: Record<string, any>) =>
       request<{ user: any }>('/api/auth/update', {
         method: 'POST',
         body: JSON.stringify({ email, patch }),
       }),
+    getProfile: (email: string) =>
+      request<{ user: any }>(`/api/auth/me?email=${encodeURIComponent(email)}`),
   },
 
   // Cycle Logs API
@@ -116,6 +118,13 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ email, name, relationship, permissions }),
       }),
+    update: (email: string, id: string, patch: { permissions?: any; active?: boolean }) =>
+      request<{ shares: any[] }>('/api/sharing/update', {
+        method: 'POST',
+        body: JSON.stringify({ email, id, ...patch }),
+      }),
+    getPublicView: (shareId: string) =>
+      request<{ active: boolean; share?: any; userName?: string; cycleData?: any; symptomData?: any; pregnancyData?: any; insightsData?: any; message?: string }>(`/api/sharing/view?id=${encodeURIComponent(shareId)}`),
   },
 
   // Assistant RAG AI Chat API

@@ -24,6 +24,7 @@ import { MedsTrackerPage } from './pages/MedsTrackerPage';
 import { SharingPage } from './pages/SharingPage';
 import { TeenModePage } from './pages/TeenModePage';
 import { DoctorSummaryPage } from './pages/DoctorSummaryPage';
+import { ShareViewPage } from './pages/ShareViewPage';
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
           <BrowserRouter>
             <Routes>
               {/* Public */}
+              <Route path="/share/:shareId" element={<ShareViewPage />} />
               <Route element={<PublicLayout />}>
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/about" element={<AboutPage />} />

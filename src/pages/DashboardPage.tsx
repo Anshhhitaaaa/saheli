@@ -150,7 +150,7 @@ export function DashboardPage() {
     <div className="mx-auto max-w-6xl">
       <motion.div variants={staggerContainer} initial="hidden" animate="visible">
         <motion.h1 variants={fadeUp} className="font-display text-3xl font-600 text-sand-900 dark:text-sand-100 sm:text-4xl">
-          Hi {user?.name.split(' ')[0]}.
+          Hi @{user?.username || user?.name}.
         </motion.h1>
         <motion.p variants={fadeUp} className="mt-2 text-sand-600 dark:text-sand-300">
           {focusLabel[user?.focus ?? 'general'] ?? 'Welcome back.'} Here is your snapshot for today.
