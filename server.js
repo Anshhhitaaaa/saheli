@@ -149,6 +149,7 @@ async function initDB() {
 
     await pool.query(`
       UPDATE users SET username = LOWER(SPLIT_PART(email, '@', 1)) WHERE username IS NULL OR username = '';
+      ALTER TABLE community_posts ADD COLUMN IF NOT EXISTS likes JSONB DEFAULT '[]';
     `).catch(() => {});
 
     await seedInitialData();
@@ -260,6 +261,7 @@ function mapCommunityPost(row) {
     title: row.title,
     body: row.body,
     replies: typeof row.replies === 'string' ? JSON.parse(row.replies) : (row.replies || []),
+    likes: typeof row.likes === 'string' ? JSON.parse(row.likes) : (row.likes || []),
     createdAt: row.created_at
   };
 }
@@ -394,6 +396,23 @@ const server = http.createServer(async (req, res) => {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [newUser.id, newUser.name, newUser.username, newUser.email, newUser.password, newUser.focus, newUser.pregnancyMode, newUser.pregnancyWeek, newUser.createdAt]
       );
+
+      // Insert personalized welcome notifications for new user
+      const firstName = newUser.name.split(' ')[0] || 'there';
+      await pool.query(`
+        INSERT INTO user_notifications (id, email, category, title, message, discreet_message, read, created_at)
+        VALUES 
+        ($1, $2, 'account', $3, $4, 'Welcome to Saheli! Your account is active.', false, NOW()),
+        ($5, $2, 'logging', 'Daily Mood Check-in 🌿', $6, 'Daily Saheli wellness check-in ready.', false, NOW())
+        ON CONFLICT (id) DO NOTHING
+      `, [
+        `n_welcome_${cleanEmail}`,
+        cleanEmail,
+        `Welcome to Saheli, ${firstName}!`,
+        `Your account is configured for ${newUser.focus} tracking. Explore your companion tools, community forum, and AI assistant.`,
+        `n_mood_${cleanEmail}_${new Date().toISOString().slice(0, 10)}`,
+        `How are you feeling today, ${firstName}? Tap to log your mood, energy, and physical symptoms in Saheli.`
+      ]).catch((err) => console.error('Error inserting signup notifications:', err.message));
 
       delete newUser.password;
       return sendJSON(res, 201, { user: newUser, token: 'token_' + newUser.id });
@@ -810,12 +829,85 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 201, { posts: resPosts.rows.map(mapCommunityPost) });
     }
 
+    if (pathname === '/api/community/like' && req.method === 'POST') {
+      const body = await parseJSONBody(req);
+      const { postId, userHandle } = body;
+      if (!postId || !userHandle) return sendJSON(res, 400, { error: 'PostId and userHandle required' });
+
+      const cleanHandle = userHandle.replace(/^@/, '').trim();
+      const postRes = await pool.query('SELECT * FROM community_posts WHERE id = $1', [postId]);
+      if (postRes.rows.length === 0) return sendJSON(res, 404, { error: 'Post not found' });
+
+      const post = mapCommunityPost(postRes.rows[0]);
+      let currentLikes = Array.isArray(post.likes) ? [...post.likes] : [];
+
+      const isLiked = currentLikes.includes(cleanHandle);
+      if (isLiked) {
+        currentLikes = currentLikes.filter((h) => h !== cleanHandle);
+      } else {
+        currentLikes.push(cleanHandle);
+      }
+
+      await pool.query('UPDATE community_posts SET likes = $1 WHERE id = $2', [JSON.stringify(currentLikes), postId]);
+
+      // Fire notification in background asynchronously without blocking HTTP response
+      if (!isLiked) {
+        const authorClean = post.author ? post.author.replace(/^@/, '').trim() : '';
+        if (authorClean && authorClean !== cleanHandle) {
+          pool.query('SELECT email FROM users WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($1)', [authorClean])
+            .then((authorRes) => {
+              if (authorRes.rows.length > 0) {
+                const authorEmail = authorRes.rows[0].email;
+                pool.query(`
+                  INSERT INTO user_notifications (id, email, category, title, message, discreet_message, read, created_at)
+                  VALUES ($1, $2, 'community', 'New like on your post ❤️', $3, 'Activity on your community post.', false, NOW())
+                `, [
+                  'n_like_' + Date.now(),
+                  authorEmail,
+                  `@${cleanHandle} liked your community post "${post.title.slice(0, 35)}...".`
+                ]).catch(() => {});
+              }
+            }).catch(() => {});
+        }
+      }
+
+      const resPosts = await pool.query('SELECT * FROM community_posts ORDER BY created_at DESC');
+      return sendJSON(res, 200, { posts: resPosts.rows.map(mapCommunityPost) });
+    }
+
     if (pathname === '/api/community/reply' && req.method === 'POST') {
       const body = await parseJSONBody(req);
       const { postId, author, body: replyBody } = body;
       if (!postId || !replyBody) return sendJSON(res, 400, { error: 'PostId and reply body required' });
 
-      const reply = { id: 'r_' + Date.now(), author: author || 'Anonymous', body: replyBody };
+      const replyAuthor = (author || 'Anonymous').replace(/^@/, '').trim();
+      const reply = { id: 'r_' + Date.now(), author: replyAuthor, body: replyBody };
+
+      const postRes = await pool.query('SELECT * FROM community_posts WHERE id = $1', [postId]);
+      if (postRes.rows.length > 0) {
+        const post = mapCommunityPost(postRes.rows[0]);
+        const authorClean = post.author ? post.author.replace(/^@/, '').trim() : '';
+
+        if (authorClean && authorClean !== replyAuthor) {
+          const authorRes = await pool.query(
+            'SELECT email FROM users WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($1)',
+            [authorClean]
+          ).catch(() => ({ rows: [] }));
+
+          if (authorRes.rows.length > 0) {
+            const authorEmail = authorRes.rows[0].email;
+            await pool.query(`
+              INSERT INTO user_notifications (id, email, category, title, message, discreet_message, read, created_at)
+              VALUES ($1, $2, 'community', 'New reply on your post 💬', $3, 'New reply in Community.', false, NOW())
+            `, [
+              'n_reply_' + Date.now(),
+              authorEmail,
+              `@${replyAuthor} replied to your post "${post.title.slice(0, 35)}...": "${replyBody.slice(0, 45)}..."`
+            ]).catch(() => {});
+          }
+        }
+      }
+
       await pool.query(`
         UPDATE community_posts
         SET replies = replies || $1::jsonb
@@ -973,7 +1065,7 @@ const server = http.createServer(async (req, res) => {
 
         const sampleNotifs = [
           {
-            id: 'n_1',
+            id: `n_1_${cleanEmail}`,
             email: cleanEmail,
             category: 'account',
             title: `Welcome to Saheli, ${userName}!`,
@@ -986,7 +1078,7 @@ const server = http.createServer(async (req, res) => {
 
         if (focus === 'pcos') {
           sampleNotifs.push({
-            id: 'n_2',
+            id: `n_2_${cleanEmail}`,
             email: cleanEmail,
             category: 'insights',
             title: 'PCOS Wellness Tip',
@@ -997,7 +1089,7 @@ const server = http.createServer(async (req, res) => {
           });
         } else if (focus === 'pregnancy') {
           sampleNotifs.push({
-            id: 'n_2',
+            id: `n_2_${cleanEmail}`,
             email: cleanEmail,
             category: 'pregnancy',
             title: 'Pregnancy Milestone',
@@ -1008,7 +1100,7 @@ const server = http.createServer(async (req, res) => {
           });
         } else if (focus === 'fertility') {
           sampleNotifs.push({
-            id: 'n_2',
+            id: `n_2_${cleanEmail}`,
             email: cleanEmail,
             category: 'cycle',
             title: 'Fertile Window Insight',
@@ -1019,7 +1111,7 @@ const server = http.createServer(async (req, res) => {
           });
         } else {
           sampleNotifs.push({
-            id: 'n_2',
+            id: `n_2_${cleanEmail}`,
             email: cleanEmail,
             category: 'cycle',
             title: 'Cycle Update',
@@ -1033,7 +1125,7 @@ const server = http.createServer(async (req, res) => {
         if (medsRes.rows.length > 0) {
           const firstMed = mapMedication(medsRes.rows[0]);
           sampleNotifs.push({
-            id: 'n_3',
+            id: `n_3_${cleanEmail}`,
             email: cleanEmail,
             category: 'logging',
             title: 'Daily Medication Reminder',
@@ -1044,7 +1136,7 @@ const server = http.createServer(async (req, res) => {
           });
         } else {
           sampleNotifs.push({
-            id: 'n_3',
+            id: `n_3_${cleanEmail}`,
             email: cleanEmail,
             category: 'logging',
             title: 'Daily Check-in',
@@ -1059,6 +1151,7 @@ const server = http.createServer(async (req, res) => {
           await pool.query(`
             INSERT INTO user_notifications (id, email, category, title, message, discreet_message, read, created_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            ON CONFLICT (id) DO NOTHING
           `, [sn.id, sn.email, sn.category, sn.title, sn.message, sn.discreetMessage, sn.read, sn.createdAt]);
         }
         notifs = sampleNotifs;

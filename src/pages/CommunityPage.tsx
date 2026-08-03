@@ -48,7 +48,7 @@ export function CommunityPage() {
 
   const filtered = topic === 'all' ? posts : posts.filter((p) => p.topic === topic);
 
-  const submit = async () => {
+  const submitPost = async () => {
     if (!draft.title.trim() || !draft.body.trim()) return;
     const authorHandle = currentAuthor;
     const newPost: Post = {
@@ -58,6 +58,7 @@ export function CommunityPage() {
       title: draft.title.trim(),
       body: draft.body.trim(),
       replies: [],
+      likes: [],
       createdAt: new Date().toISOString(),
     };
     setPosts((prev) => [newPost, ...prev]);
@@ -100,6 +101,33 @@ export function CommunityPage() {
     }
   };
 
+  const handleLike = async (postId: string) => {
+    if (!currentAuthor) return;
+
+    // Instant Optimistic Update (0ms delay)
+    setPosts((prev) =>
+      prev.map((p) => {
+        if (p.id !== postId) return p;
+        const currentLikes = Array.isArray(p.likes) ? [...p.likes] : [];
+        const isLiked = currentLikes.includes(currentAuthor);
+        const updatedLikes = isLiked
+          ? currentLikes.filter((h) => h !== currentAuthor)
+          : [...currentLikes, currentAuthor];
+        return { ...p, likes: updatedLikes };
+      })
+    );
+
+    // Sync with PostgreSQL backend in background
+    try {
+      const res = await api.community.likePost(postId, currentAuthor);
+      if (res && res.posts && Array.isArray(res.posts) && res.posts.length > 0) {
+        setPosts(res.posts);
+      }
+    } catch (err) {
+      console.error('Error liking post in community DB:', err);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-4xl">
       <motion.div variants={staggerContainer} initial="hidden" animate="visible">
@@ -111,17 +139,10 @@ export function CommunityPage() {
         </motion.p>
       </motion.div>
 
-      {/* Guidelines banner */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1, duration: 0.3, ease: easeOut }}
-        className="mt-6 flex items-start gap-3 rounded-2xl border border-sage-200/70 bg-sage-50/70 px-4 py-3 dark:border-sage-700/50 dark:bg-sage-800/20"
-      >
-        <Shield className="mt-0.5 h-5 w-5 shrink-0 text-sage-600 dark:text-sage-300" />
-        <p className="text-sm text-sage-700 dark:text-sage-200">
-          This is peer support, not medical guidance. Be kind, share experiences, and remember that
-          nothing here replaces your doctor.
+      <motion.div variants={fadeUp} initial="hidden" animate="visible" className="mt-4 flex items-center gap-3 rounded-2xl border border-sage-200/80 bg-sage-50/80 px-4 py-3 dark:border-sage-800/60 dark:bg-sage-900/30">
+        <Shield className="h-5 w-5 shrink-0 text-sage-600 dark:text-sage-300" />
+        <p className="text-sm text-sage-800 dark:text-sage-200">
+          This community is moderated for safety. Posts and replies are visible to all members.
         </p>
       </motion.div>
 
@@ -147,7 +168,7 @@ export function CommunityPage() {
             transition={{ duration: 0.3, ease: easeOut }}
             className="overflow-hidden"
           >
-            <Card className="mt-4">
+            <Card className="mt-4 border-clay-200/80 dark:border-clay-700/60 shadow-md">
               <div className="mb-3">
                 <label className="mb-1.5 block text-xs font-600 uppercase tracking-wide text-sand-600 dark:text-sand-300">
                   Select Category
@@ -170,18 +191,18 @@ export function CommunityPage() {
                 value={draft.title}
                 onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
                 placeholder="Post Title"
-                className="input-base mb-3"
+                className="input-base mb-3 text-sm bg-white dark:bg-sand-900 border-sand-200 dark:border-sand-700"
               />
               <textarea
                 value={draft.body}
                 onChange={(e) => setDraft((d) => ({ ...d, body: e.target.value }))}
                 rows={4}
                 placeholder="Share your experience with the community…"
-                className="input-base resize-none"
+                className="input-base resize-none text-sm bg-white dark:bg-sand-900 border-sand-200 dark:border-sand-700"
               />
               <div className="mt-3 flex items-center justify-between">
                 <span className="text-xs text-sand-500">Posting as <strong className="text-clay-600 dark:text-clay-300">@{currentAuthor}</strong></span>
-                <Button size="sm" onClick={submit} leftIcon={<Send className="h-4 w-4" />}>
+                <Button size="sm" onClick={submitPost} leftIcon={<Send className="h-4 w-4" />}>
                   Post to Community
                 </Button>
               </div>
@@ -193,12 +214,18 @@ export function CommunityPage() {
       <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="mt-6 space-y-4">
         <AnimatePresence>
           {filtered.map((post) => (
-            <PostCard key={post.id} post={post} onReply={(body) => handleReply(post.id, body)} onReport={() => setReporting(post.id)} />
+            <PostCard
+              key={post.id}
+              post={post}
+              onReply={(body) => handleReply(post.id, body)}
+              onLike={() => handleLike(post.id)}
+              onReport={() => setReporting(post.id)}
+            />
           ))}
         </AnimatePresence>
       </motion.div>
 
-      {/* Report modal */}
+      {/* Report Modal */}
       <Modal open={!!reporting} onClose={() => { setReporting(null); setReportReason(''); }} title="Report this post" size="sm">
         <div className="space-y-4">
           <p className="text-sm text-sand-600 dark:text-sand-400">
@@ -215,34 +242,11 @@ export function CommunityPage() {
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => { setReporting(null); setReportReason(''); }}>Cancel</Button>
-            <Button onClick={() => { setReporting(null); setReportReason(''); }} disabled={!reportReason}>Submit report</Button>
+            <Button variant="ghost" size="sm" onClick={() => { setReporting(null); setReportReason(''); }}>Cancel</Button>
+            <Button size="sm" onClick={() => { setReporting(null); setReportReason(''); }} disabled={!reportReason}>Submit report</Button>
           </div>
         </div>
       </Modal>
-
-      {/* Aggregate community insights */}
-      <motion.div variants={fadeUp} initial="hidden" animate="visible" className="mt-6">
-        <Card className="bg-sage-50/60 dark:bg-sage-800/20">
-          <h2 className="flex items-center gap-2 font-600 text-sand-900 dark:text-sand-100">
-            <TrendingUp className="h-5 w-5 text-sage-600 dark:text-sage-300" /> Patterns from the community
-          </h2>
-          <p className="mt-1 text-sm text-sand-500 dark:text-sand-400">
-            Aggregate, anonymized patterns from community tracking — framed as peer patterns, never diagnostic.
-          </p>
-          <div className="mt-4 space-y-3">
-            {communityInsights.slice(0, 3).map((insight) => (
-              <div key={insight.topic} className="flex items-start gap-3 rounded-xl bg-white/60 p-3 dark:bg-sand-800/40">
-                <span className="rounded-full bg-sage-100 px-2.5 py-0.5 text-xs font-600 capitalize text-sage-700 dark:bg-sage-700/40 dark:text-sage-200">{insight.label}</span>
-                <div className="flex-1">
-                  <p className="text-sm text-sand-700 dark:text-sand-200">{insight.pattern}</p>
-                  <p className="mt-1 text-xs text-sand-400">{insight.count.toLocaleString()} members tracking this</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </motion.div>
 
       <div className="mt-8">
         <Disclaimer variant="inline" />
@@ -251,7 +255,7 @@ export function CommunityPage() {
   );
 }
 
-function PostCard({ post, onReply, onReport }: { post: CommunityPost; onReply: (body: string) => void; onReport: () => void }) {
+function PostCard({ post, onReply, onLike, onReport }: { post: CommunityPost; onReply: (body: string) => void; onLike: () => void; onReport: () => void }) {
   const { user } = useAuth();
   const [replying, setReplying] = useState(false);
   const [body, setBody] = useState('');
@@ -261,6 +265,9 @@ function PostCard({ post, onReply, onReport }: { post: CommunityPost; onReply: (
     : user?.name
     ? user.name.toLowerCase().replace(/\s+/g, '_')
     : 'anonymous';
+
+  const likesList = Array.isArray(post.likes) ? post.likes : [];
+  const isLiked = currentAuthor && likesList.includes(currentAuthor);
 
   return (
     <motion.div variants={fadeUp} initial="hidden" animate="visible" exit={{ opacity: 0 }} layout>
@@ -282,8 +289,15 @@ function PostCard({ post, onReply, onReport }: { post: CommunityPost; onReply: (
         
         <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-sand-500 border-t border-sand-200/50 pt-3 dark:border-sand-700/50">
           <span className="text-sand-400">{new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-          <button className="flex items-center gap-1.5 font-500 text-sand-600 hover:text-clay-600 dark:text-sand-300 transition-colors" aria-label="Like">
-            <Heart className="h-3.5 w-3.5 text-clay-400" /> {Math.floor(Math.random() * 12)} likes
+          <button
+            onClick={onLike}
+            className={`flex items-center gap-1.5 font-600 transition-colors ${
+              isLiked ? 'text-rose-600 dark:text-rose-400' : 'text-sand-500 hover:text-rose-500'
+            }`}
+            aria-label="Like post"
+          >
+            <Heart className={`h-4 w-4 ${isLiked ? 'fill-rose-500 text-rose-500' : ''}`} />
+            <span>{likesList.length} {likesList.length === 1 ? 'like' : 'likes'}</span>
           </button>
           <button
             onClick={() => setReplying((r) => !r)}
@@ -292,7 +306,7 @@ function PostCard({ post, onReply, onReport }: { post: CommunityPost; onReply: (
             <MessageSquare className="h-4 w-4" />
             <span>{post.replies?.length || 0} {post.replies?.length === 1 ? 'reply' : 'replies'}</span>
           </button>
-          <button onClick={onReport} className="ml-auto flex items-center gap-1 hover:text-danger text-sand-400 transition-colors" aria-label="Report post">
+          <button onClick={onReport} className="ml-auto flex items-center gap-1 hover:text-danger text-sand-400 transition-colors" aria-label="Report post" >
             <Flag className="h-3.5 w-3.5" /> Report
           </button>
         </div>

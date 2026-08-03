@@ -5,6 +5,7 @@ export interface CommunityPost {
   title: string;
   body: string;
   replies: { id: string; author: string; body: string }[];
+  likes?: string[];
   createdAt: string;
 }
 

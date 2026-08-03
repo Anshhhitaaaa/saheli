@@ -107,6 +107,11 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ postId, author, body }),
       }),
+    likePost: (postId: string, userHandle: string) =>
+      request<{ posts: any[] }>('/api/community/like', {
+        method: 'POST',
+        body: JSON.stringify({ postId, userHandle }),
+      }),
   },
 
   // Sharing API
