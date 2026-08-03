@@ -37,9 +37,17 @@ export function SymptomsPage() {
 
   useEffect(() => {
     if (user?.email) {
+      const todayDate = new Date().toISOString().slice(0, 10);
       api.symptoms.get(user.email).then((res) => {
         if (res.logs && res.logs.length > 0) {
           setHistory(res.logs);
+          const todayLog = res.logs.find((l: any) => l.date === todayDate);
+          if (todayLog) {
+            if (todayLog.mood) setMood(todayLog.mood);
+            if (todayLog.symptoms) setSelected(todayLog.symptoms);
+            if (todayLog.severity) setSeverity(todayLog.severity);
+            if (todayLog.notes || todayLog.note) setNote(todayLog.notes || todayLog.note);
+          }
         } else {
           setHistory([]);
         }
@@ -65,13 +73,12 @@ export function SymptomsPage() {
       note: note.trim() || undefined,
       redFlag: hasRedFlag,
     };
-    setHistory((prev) => [entry, ...prev]);
+    setHistory((prev) => {
+      const filtered = prev.filter((s) => s.date !== todayDate);
+      return [entry, ...filtered];
+    });
     setJustSaved(true);
     setTimeout(() => setJustSaved(false), 1600);
-    setSelected([]);
-    setNote('');
-    setSeverity(3);
-    setMood('calm');
 
     if (user?.email) {
       api.symptoms.save(user.email, todayDate, selected, note, mood, severity).catch(() => {});

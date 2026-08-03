@@ -18,6 +18,7 @@ import { Button } from '../components/common/Button';
 import { Card } from '../components/common/Card';
 import { SectionTitle } from '../components/common/Card';
 import { Disclaimer } from '../components/common/Disclaimer';
+import { useAuth } from '../context/AuthContext';
 import {
   fadeUp,
   staggerContainer,
@@ -47,6 +48,7 @@ const personas = [
 ];
 
 export function LandingPage() {
+  const { user } = useAuth();
   return (
     <div>
       {/* Hero */}
@@ -89,11 +91,19 @@ export function LandingPage() {
                 real care, one tap away.
               </motion.p>
               <motion.div variants={fadeUp} className="mt-8 flex flex-wrap gap-3">
-                <Link to="/signup">
-                  <Button size="lg" rightIcon={<ArrowRight className="h-5 w-5" />}>
-                    Start tracking
-                  </Button>
-                </Link>
+                {user ? (
+                  <Link to="/dashboard">
+                    <Button size="lg" rightIcon={<ArrowRight className="h-5 w-5" />}>
+                      Go to dashboard
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link to="/signup">
+                    <Button size="lg" rightIcon={<ArrowRight className="h-5 w-5" />}>
+                      Start tracking
+                    </Button>
+                  </Link>
+                )}
                 <Link to="/library">
                   <Button variant="outline" size="lg" leftIcon={<BookOpen className="h-5 w-5" />}>
                     Explore the library
@@ -226,13 +236,23 @@ export function LandingPage() {
             Free to start. No judgment, no jargon — just a calmer way to understand your body.
           </motion.p>
           <motion.div variants={fadeUp} className="mt-8 flex justify-center">
-            <Link
-              to="/signup"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-7 py-3.5 text-base font-700 text-clay-700 shadow-md transition-all hover:bg-sand-50 hover:text-clay-800 hover:shadow-lg active:scale-95"
-            >
-              Get started
-              <ArrowRight className="h-5 w-5 text-clay-700" />
-            </Link>
+            {user ? (
+              <Link
+                to="/dashboard"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-7 py-3.5 text-base font-700 text-clay-700 shadow-md transition-all hover:bg-sand-50 hover:text-clay-800 hover:shadow-lg active:scale-95"
+              >
+                Go to dashboard
+                <ArrowRight className="h-5 w-5 text-clay-700" />
+              </Link>
+            ) : (
+              <Link
+                to="/signup"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-7 py-3.5 text-base font-700 text-clay-700 shadow-md transition-all hover:bg-sand-50 hover:text-clay-800 hover:shadow-lg active:scale-95"
+              >
+                Get started
+                <ArrowRight className="h-5 w-5 text-clay-700" />
+              </Link>
+            )}
           </motion.div>
         </motion.div>
       </section>

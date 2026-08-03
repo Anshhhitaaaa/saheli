@@ -53,7 +53,7 @@ export function PublicLayout() {
             <ThemeToggle />
             {user ? (
               <Button size="sm" onClick={() => navigate('/dashboard')}>
-                Go to app
+                Go to dashboard
               </Button>
             ) : (
               <>

@@ -120,8 +120,14 @@ export function InsightsPage() {
           Insights & Analytics
         </motion.h1>
         <motion.p variants={fadeUp} className="mt-2 text-sand-600 dark:text-sand-300">
-          Real-time trends generated directly from your logged PostgreSQL database entries.
+          Personalized wellness trends generated from your logged cycle and mood entries.
         </motion.p>
+        <motion.div variants={fadeUp} className="mt-3 flex items-center gap-2 rounded-xl bg-sage-50 px-4 py-2.5 text-xs text-sage-800 dark:bg-sage-900/30 dark:text-sage-200 border border-sage-200/80 dark:border-sage-800/60 shadow-xs">
+          <span className="text-sm">🌿</span>
+          <span>
+            <strong>Understanding your trends:</strong> Your cycle lengths and mood shifts update in real-time as you log your daily check-ins, helping you spot meaningful health patterns over time.
+          </span>
+        </motion.div>
       </motion.div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -227,7 +233,7 @@ export function InsightsPage() {
           <div>
             <h3 className="font-600 text-sand-900 dark:text-sand-100">Plain-language Takeaway</h3>
             <p className="mt-1 text-sm text-sand-600 dark:text-sand-400">
-              Charts show your latest 7 logged entries for optimal clarity, while all historic data remains stored safely in your PostgreSQL database (`symptom_logs` and `cycle_logs`).
+              Charts show your latest 7 logged entries for optimal clarity.
             </p>
           </div>
         </Card>

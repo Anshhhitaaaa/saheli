@@ -204,8 +204,8 @@ export function TrackerPage() {
       }
     }
 
-    // 2. Update local history for symptoms
-    if (editingSymptoms.length > 0 || editingSymptomNote) {
+    // 2. Update local history for symptoms & mood
+    if (editingSymptoms.length > 0 || editingSymptomNote || editingMood) {
       const isRed = editingSymptoms.some((s) => redFlagSymptoms.includes(s));
       const entry: SymptomEntry = {
         id: 's_' + targetDate,
@@ -377,6 +377,7 @@ export function TrackerPage() {
                       const isToday = date === today;
                       const isSelected = date === selectedDate;
                       const hasSymptoms = Boolean(symptomEntry && symptomEntry.symptoms?.length > 0);
+                      const hasMood = Boolean(symptomEntry && symptomEntry.mood);
 
                       return (
                         <button
@@ -396,6 +397,10 @@ export function TrackerPage() {
                             {/* Flow indicator dot */}
                             {flow !== 'none' && (
                               <span className={`h-2 w-2 rounded-full ${flowColors[flow]}`} title={`Flow: ${flowLabels[flow]}`} />
+                            )}
+                            {/* Mood indicator dot */}
+                            {hasMood && (
+                              <span className="h-1.5 w-1.5 rounded-full bg-rose-400 dark:bg-rose-500" title={`Mood: ${symptomEntry?.mood}`} />
                             )}
                             {/* Symptom indicator dot */}
                             {hasSymptoms && (
@@ -418,6 +423,10 @@ export function TrackerPage() {
                       {flowLabels[f]}
                     </span>
                   ))}
+                  <span className="flex items-center gap-1.5 text-sand-500 dark:text-sand-400">
+                    <span className="h-2 w-2 rounded-full bg-rose-400 dark:bg-rose-500" />
+                    Mood logged
+                  </span>
                   <span className="flex items-center gap-1.5 text-sand-500 dark:text-sand-400">
                     <span className="h-2 w-2 rounded-full bg-sage-500" />
                     Symptoms logged

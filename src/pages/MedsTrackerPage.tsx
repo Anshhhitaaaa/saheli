@@ -449,7 +449,7 @@ export function MedsTrackerPage() {
               </div>
 
               <p className="text-sand-500 dark:text-sand-400">
-                Synced with PostgreSQL database
+                Synced & securely saved
               </p>
             </div>
           </Card>

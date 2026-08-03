@@ -11,6 +11,23 @@ import { useCountUp } from '../hooks/useCountUp';
 import { staggerContainer, fadeUp } from '../animations/variants';
 import { LogPeriodStartModal } from '../components/tracker/LogPeriodStartModal';
 import { OnboardingWalkthrough } from '../components/onboarding/OnboardingWalkthrough';
+import { api } from '../services/api';
+
+const dashboardMoodToApiMap: Record<string, 'calm' | 'sad' | 'anxious' | 'irritable' | 'happy'> = {
+  'Okay': 'calm',
+  'A bit low': 'sad',
+  'Anxious': 'anxious',
+  'Overwhelmed': 'irritable',
+  'Doing well': 'happy',
+};
+
+const apiMoodToDashboardMap: Record<string, string> = {
+  calm: 'Okay',
+  sad: 'A bit low',
+  anxious: 'Anxious',
+  irritable: 'Overwhelmed',
+  happy: 'Doing well',
+};
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -82,6 +99,43 @@ export function DashboardPage() {
   const dayCount = useCountUp(stats?.currentDay ?? 0);
   const [moodToday, setMoodToday] = useState<string | null>(null);
   const [showCrisis, setShowCrisis] = useState(false);
+
+  // Fetch today's mood from database on load
+  useEffect(() => {
+    if (user?.email) {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      api.symptoms.get(user.email).then((res) => {
+        if (res.logs && Array.isArray(res.logs)) {
+          const todayLog = res.logs.find((l: any) => l.date === todayStr);
+          if (todayLog && todayLog.mood) {
+            const dashMood = apiMoodToDashboardMap[todayLog.mood.toLowerCase()] || todayLog.mood;
+            setMoodToday(dashMood);
+          }
+        }
+      }).catch(() => {});
+    }
+  }, [user?.email]);
+
+  const handleDashboardMoodClick = (m: string) => {
+    setMoodToday(m);
+    if (m === 'Overwhelmed') setShowCrisis(true);
+
+    if (user?.email) {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const apiMood = dashboardMoodToApiMap[m] || 'calm';
+
+      api.symptoms.get(user.email).then((res) => {
+        const existing = res.logs?.find((l: any) => l.date === todayStr);
+        const existingSymptoms = existing?.symptoms || [];
+        const existingNotes = existing?.notes || existing?.note || '';
+        const existingSeverity = existing?.severity || 3;
+
+        api.symptoms.save(user.email, todayStr, existingSymptoms, existingNotes, apiMood, existingSeverity).catch(() => {});
+      }).catch(() => {
+        api.symptoms.save(user.email, todayStr, [], '', apiMood, 3).catch(() => {});
+      });
+    }
+  };
 
   const focusLabel: Record<string, string> = {
     pcos: 'PCOS focus',
@@ -185,7 +239,7 @@ export function DashboardPage() {
                 {['Okay', 'A bit low', 'Anxious', 'Overwhelmed', 'Doing well'].map((m) => (
                   <button
                     key={m}
-                    onClick={() => { setMoodToday(m); if (m === 'Overwhelmed') setShowCrisis(true); }}
+                    onClick={() => handleDashboardMoodClick(m)}
                     className={`chip text-sm ${moodToday === m ? 'chip-active' : ''}`}
                     aria-pressed={moodToday === m}
                   >
