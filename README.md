@@ -1,50 +1,110 @@
-# 🌸 Saheli — Women's Health Companion & AI Health Platform
+<div align="center">
 
-> **Saheli** *(meaning "trusted friend" in Hindi)* is a full-stack, privacy-first women’s health platform for menstrual cycle tracking, PCOS management, fertility awareness, pregnancy companion guidance, menopause support, location-based gynecologist discovery, consent-gated data sharing, doctor-visit report generation, and data-driven AI medical insights.
+# 🌸 Saheli (सहेली) — Women's Health Companion & AI Platform
 
----
+<p align="center">
+  <img src="https://img.shields.io/badge/React-18.3-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 18" />
+  <img src="https://img.shields.io/badge/TypeScript-5.5-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/Node.js-20-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js" />
+  <img src="https://img.shields.io/badge/LangGraph-RAG_AI-FF6F61?style=for-the-badge&logo=openai&logoColor=white" alt="LangGraph AI" />
+  <img src="https://img.shields.io/badge/Tailwind_CSS-3.4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind CSS" />
+  <img src="https://img.shields.io/badge/Vite-5.4-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite" />
+</p>
 
-## 📑 Table of Contents
-
-- [🌟 System Architecture Overview](#-system-architecture-overview)
-- [✨ Key Platform Features](#-key-platform-features)
-  - [👤 1. Full-Stack Unique Username & Flexible Auth](#-1-full-stack-unique-username--flexible-auth)
-  - [🩸 2. Intelligent Cycle & Period Tracking](#-2-intelligent-cycle--period-tracking)
-  - [💬 3. Global Real-Time Community Forums & Instant Likes](#-3-global-real-time-community-forums--instant-likes)
-  - [🏥 4. Location-Based Gynecologist Discovery & Tele-Consultation](#-4-location-based-gynecologist-discovery--tele-consultation)
-  - [🤝 5. Consent-Gated Health Sharing & Public Reader](#-5-consent-gated-health-sharing--public-reader)
-  - [🩺 6. Doctor-Visit Summary & PDF Report Generator](#-6-doctor-visit-summary--pdf-report-generator)
-  - [🔔 7. User-Isolated Notifications System](#-7-user-isolated-notifications-system)
-  - [💊 8. Medication Tracker & Interactive Adherence Calendar](#-8-medication-tracker--interactive-adherence-calendar)
-  - [🤖 9. Ask Saheli — LangGraph Data-Driven AI Assistant](#-9-ask-saheli--langgraph-data-driven-ai-assistant)
-  - [🤰 10. Pregnancy Companion & Teen Mode](#-10-pregnancy-companion--teen-mode)
-  - [📈 11. Insights & Visual Recharts Analytics](#-11-insights--visual-recharts-analytics)
-- [🗄️ Database Schema Architecture (PostgreSQL)](#️-database-schema-architecture-postgresql)
-- [🛠️ Technology Stack](#️-technology-stack)
-- [📁 Directory & File Structure](#-directory--file-structure)
-- [🔑 Environment Variables Setup](#-environment-variables-setup)
-- [🚀 Quickstart (Local Development)](#-quickstart-local-development)
-- [🚀 Deployment Commands](#-deployment-commands)
+### *A privacy-first, consent-gated, full-stack ecosystem for menstrual tracking, PCOS management, fertility awareness, pregnancy companion guidance, location-based gynecologist discovery, and data-driven AI medical insights.*
 
 ---
 
-## 🌟 System Architecture Overview
+[Key Features](#-key-features) • [System Architecture](#-system-architecture) • [Database Schema](#-database-schema) • [AI Engine](#-ai-engine) • [Quickstart](#-quickstart)
 
-Saheli is engineered with a decoupled, high-performance architecture:
-- **Frontend SPA**: React 18, TypeScript, Vite, Tailwind CSS, Framer Motion, Recharts, Lucide React, React Router v7.
-- **Backend API**: Node.js Native HTTP REST API Server.
-- **Database Layer**: **PostgreSQL** (`pg` connection pool) with 9 relational tables, custom indices, and `JSONB` support.
-- **AI RAG Engine**: **LangGraph + LangChain Multi-LLM RAG Agent** (`server/langgraph_agent.js`) using Groq Llama 3.3 70B & Google Gemini with real-time PostgreSQL user log context injection.
+</div>
 
 ---
 
-## ✨ Key Platform Features
+## 🌟 Why Saheli?
+
+In Hindi, **Saheli (सहेली)** means *"trusted female friend"*. Traditional period trackers sell sensitive health data or treat women's health as a simple 28-day calendar. **Saheli** is designed differently:
+
+- 🔒 **100% Consent-Gated Privacy**: You decide exactly who sees your health logs—with 1-click token revocation.
+- 🤖 **Data-Driven AI Medical Companion**: Powered by **LangGraph & Multi-LLM RAG**, Saheli reads your actual cycle & symptom logs to answer *"When is my next period?"* or *"What phase am I in?"* with clinical accuracy.
+- 🩺 **Instant Tele-Consultation & Gyno Finder**: Detects your location to surface nearby Gynecologists in **Delhi (NCR), Bengaluru, or Mumbai** with one-tap phone dialing.
+- 📄 **1-Click Doctor Visit PDF Generator**: Compiles cycle stats, symptom histories, and custom physician notes into a printable medical summary.
+- 💬 **Zero-Delay Community Forums**: Peer support forums with unique `@username` pseudonyms, 0ms optimistic likes, and activity notifications.
+
+---
+
+## 🎨 Design Aesthetics & Color System
+
+Saheli features an organic, warm **Terra-Cotta & Sage** design system built with smooth Framer Motion micro-animations, glassmorphism card layouts, and crisp typography:
+
+```text
+  🌸 Warm Clay / Terra-Cotta   (#B84A34)  ➔ Primary Brand & Action Highlights
+  🌿 Healing Sage Green        (#477459)  ➔ Health Insights & Consent Verification
+  ☀️ Soft Sand Gold            (#F5EFE7)  ➔ Warm Background & Glassmorphic Surfaces
+  🌙 Deep Slate Dark Mode      (#1F1914)  ➔ High-Contrast Night Mode Experience
+```
+
+---
+
+## 🏗️ System Architecture & Data Flow
+
+```mermaid
+flowchart TD
+    subgraph Client ["📱 React 18 Frontend SPA (Vite + TypeScript)"]
+        UI["Dashboard & App Navigation"]
+        Tracker["Period Tracker & Symptom Logger"]
+        AI_Chat["Ask Saheli AI Chat Interface"]
+        Care["Find Care & Location Gynecologist Finder"]
+        Sharing["Consent-Gated Health Sharing (/share/:shareId)"]
+        Summary["Doctor Visit Summary PDF Generator"]
+    end
+
+    subgraph Backend ["⚡ Node.js REST API Engine (server.js)"]
+        Auth["Auth Service (Username & Email Login)"]
+        CycleAPI["Cycle & Symptom Engine"]
+        CommAPI["Community & 0ms Like Service"]
+        NotifAPI["User-Isolated Notification System"]
+        ShareAPI["Public Share Token & Permission Validator"]
+    end
+
+    subgraph AI ["🧠 LangGraph Multi-LLM RAG Engine (server/langgraph_agent.js)"]
+        LangGraph["LangGraph Workflow"]
+        Groq["Groq Llama 3.3 70B & Gemini"]
+        Safety["Red-Flag Medical Safety Filter"]
+    end
+
+    subgraph DB ["🐘 PostgreSQL Database (Neon / Supabase)"]
+        UsersDB[(users)]
+        CycleDB[(cycle_logs & symptom_logs)]
+        CommDB[(community_posts)]
+        NotifDB[(user_notifications)]
+        ShareDB[(share_links)]
+    end
+
+    UI --> Auth
+    Tracker --> CycleAPI
+    CycleAPI --> DB
+    Auth --> UsersDB
+    AI_Chat --> LangGraph
+    LangGraph --> DB
+    LangGraph --> Groq
+    Groq --> Safety
+    Care --> UI
+    Sharing --> ShareAPI
+    ShareAPI --> ShareDB
+    CommAPI --> CommDB
+    NotifAPI --> NotifDB
+```
+
+---
+
+## ✨ Key Features & Capabilities
 
 ### 👤 1. Full-Stack Unique Username & Flexible Auth
 - **Unique Handle Registration**: Enforces unique `@username` handle validation during signup (`/api/auth/signup`) and profile management (`/api/auth/update`).
 - **Dual Login Flexibility**: Users can log in using either their unique `@username` or registered `email` address.
 - **Live Database Sync**: Automatic profile sync on app mount (`/api/auth/me`) and manual **"Sync with Database"** control in Profile.
-- **Consistent Display**: Displays user handles (`@username`) across the Dashboard header, App sidebar, Profile page, and Community posts.
 
 ### 🩸 2. Intelligent Cycle & Period Tracking
 - **Log Period Start Modal**: Quick date presets (*Today*, *Yesterday*, *2 days ago*, *3 days ago* or custom date picker), flow intensity (`spotting`, `light`, `medium`, `heavy`), and notes.
@@ -81,58 +141,138 @@ Saheli is engineered with a decoupled, high-performance architecture:
 - **Independent Read States**: Reading or clearing notifications on User A's account never impacts User B's notification tray.
 - **Automatic Signup Welcome Notifications**: Automatically generates personalized welcome & daily check-in notifications for new users upon registration.
 
-### 💊 8. Medication Tracker & Interactive Adherence Calendar
-- **Segmented View**: Toggle between `Daily Meds Checklist` and `Medication Calendar`.
-- **3 Metric Cards**: Real-time stats for Active Prescriptions, Streak (🔥), and Monthly Adherence (%).
-- **Interactive Calendar Grid**: Visual status badges (Green = Taken, Amber = Partial, Gray = Missed, Rose = Today).
-
-### 🤖 9. Ask Saheli — LangGraph Data-Driven AI Assistant
-- **Universal Query Handling**: Answers questions on cycle health, PCOS, fertility, nutrition, workouts, and menopause.
-- **Real PostgreSQL Predictor**: Analyzes database logs to answer *"When is my next period?"* or *"What phase am I in?"* with exact countdowns.
-- **Red-Flag Medical Safety**: Detects clinical emergency keywords and provides immediate medical disclaimers.
-
-### 🤰 10. Pregnancy Companion & Teen Mode
-- **Pregnancy Companion**: Week 4 to Week 40 developmental guidance, trimester milestones, and kick counter tool.
-- **Teen Mode**: First-period guides, educational resources, and simplified cycle tracking for teenagers.
-
-### 📈 11. Insights & Visual Recharts Analytics
-- **Mood Across Entries Line Chart**: Connected directly to real PostgreSQL `symptom_logs`.
-- **Named Y-Axis Ticks**: Displays explicit mood labels (**Happy**, **Calm**, **Tired**, **Anxious**, **Sad**).
-- **Custom Tooltips**: Displays exact log date, mood emoji, severity (`3/5`), and notes.
-
 ---
 
-## 🗄️ Database Schema Architecture (PostgreSQL)
+## 🗄️ PostgreSQL Database Schema Architecture
 
-Saheli operates on 9 relational PostgreSQL tables:
+Saheli's backend is powered by **9 production-grade relational tables** in PostgreSQL:
 
 ```sql
-users                     -- User credentials, username, email, focus, pregnancy_mode, pregnancy_week, last_period_start
-cycle_logs                -- Period start dates, flow levels, notes (UNIQUE on email, date)
-symptom_logs              -- Daily symptoms JSONB, mood labels, severity 1-5, notes
-medications               -- Prescriptions, dosage, frequency, taken_dates JSONB history
-assistant_chats           -- User AI conversation history, bot responses, sources JSONB, safety flags
-community_posts           -- Forums topics, titles, bodies, author, replies JSONB, likes JSONB
-share_links               -- Partner/Doctor access tokens, relationship, permissions JSONB, active boolean
-user_notifications        -- In-app user notifications & alerts (email, category, title, message, read)
-notification_preferences -- Discreet mode settings & category toggles JSONB
+-- 1. Users & Authentication
+CREATE TABLE users (
+  id VARCHAR(64) PRIMARY KEY,
+  name TEXT NOT NULL,
+  username TEXT UNIQUE NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  focus TEXT DEFAULT 'general',
+  pregnancy_mode BOOLEAN DEFAULT FALSE,
+  pregnancy_week INTEGER,
+  last_period_start TEXT,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2. Period & Cycle Tracking Logs
+CREATE TABLE cycle_logs (
+  id SERIAL PRIMARY KEY,
+  email TEXT NOT NULL,
+  date TEXT NOT NULL,
+  flow TEXT NOT NULL,
+  note TEXT,
+  updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(email, date)
+);
+
+-- 3. Daily Symptoms & Mood Log
+CREATE TABLE symptom_logs (
+  id SERIAL PRIMARY KEY,
+  email TEXT NOT NULL,
+  date TEXT NOT NULL,
+  symptoms JSONB DEFAULT '[]',
+  notes TEXT,
+  mood TEXT,
+  severity INTEGER DEFAULT 1,
+  updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(email, date)
+);
+
+-- 4. Medication Prescriptions & Adherence History
+CREATE TABLE medications (
+  id VARCHAR(64) PRIMARY KEY,
+  email TEXT NOT NULL,
+  name TEXT NOT NULL,
+  type TEXT,
+  dose TEXT,
+  schedule TEXT,
+  active BOOLEAN DEFAULT TRUE,
+  started_at TEXT,
+  notes TEXT,
+  taken_dates JSONB DEFAULT '[]'
+);
+
+-- 5. AI Assistant Conversation History
+CREATE TABLE assistant_chats (
+  id SERIAL PRIMARY KEY,
+  email TEXT,
+  conversation_id VARCHAR(64),
+  user_message TEXT,
+  bot_response TEXT,
+  sources JSONB,
+  safety_flag BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 6. Community Forums & Nested Replies
+CREATE TABLE community_posts (
+  id VARCHAR(64) PRIMARY KEY,
+  topic TEXT,
+  author TEXT,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  replies JSONB DEFAULT '[]',
+  likes JSONB DEFAULT '[]',
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 7. Consent-Gated Sharing Links
+CREATE TABLE share_links (
+  id VARCHAR(64) PRIMARY KEY,
+  email TEXT NOT NULL,
+  name TEXT,
+  relationship TEXT,
+  permissions JSONB,
+  active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 8. User-Isolated Notifications
+CREATE TABLE user_notifications (
+  id VARCHAR(64) PRIMARY KEY,
+  email TEXT NOT NULL,
+  category TEXT,
+  title TEXT,
+  message TEXT,
+  discreet_message TEXT,
+  read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 9. Notification Preferences
+CREATE TABLE notification_preferences (
+  email TEXT PRIMARY KEY,
+  discreet_mode BOOLEAN DEFAULT TRUE,
+  categories JSONB,
+  updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
 ---
 
 ## 🛠️ Technology Stack
 
-| Layer | Technology |
+| Layer | Technologies Used |
 | :--- | :--- |
-| **Frontend UI** | React 18, TypeScript, Vite, Tailwind CSS, Framer Motion, Recharts, Lucide React, React Router v7 |
-| **Backend API** | Node.js (Native HTTP Server), ES Modules |
-| **Database** | PostgreSQL (`pg` connection pool, hosted on Neon Cloud / Supabase / Local) |
-| **AI Framework** | LangGraph, LangChain, Groq Llama 3.3 70B, Google Gemini & Open Inference |
-| **Deployment** | Vercel (Frontend SPA), Render (Backend API Service) |
+| **Frontend Framework** | React 18.3, TypeScript 5.5, Vite 5.4 |
+| **UI Styling & Animation** | Tailwind CSS 3.4, Framer Motion 11, Recharts, Lucide React Icons |
+| **Routing** | React Router v7 (SPA with Public, Auth, Shared, and App Layouts) |
+| **Backend Runtime** | Node.js (Native HTTP REST Server), ES Modules |
+| **Database** | PostgreSQL (`pg` pool, Neon Cloud / Supabase / Local PostgreSQL) |
+| **AI RAG Pipeline** | LangGraph, LangChain, Groq Llama 3.3 70B, Google Gemini API |
+| **Deployment Target** | Vercel (Frontend SPA), Render (Backend Service) |
 
 ---
 
-## 📁 Directory & File Structure
+## 📁 Repository Directory Structure
 
 ```text
 saaheeli/
@@ -187,55 +327,42 @@ saaheeli/
 
 ---
 
-## 🔑 Environment Variables Setup
+## ⚡ Quickstart & Local Setup
 
-Create a `.env` file in the root directory (refer to `.env.example`):
+### 1. Clone & Install
+```bash
+git clone https://github.com/Anshhhitaaaa/saaheeli.git
+cd saaheeli
+npm install
+```
 
+### 2. Configure Environment Variables
+Create a `.env` file in the root directory (see `.env.example`):
 ```env
-# Cloud or Local PostgreSQL Connection String
 DATABASE_URL=postgresql://<username>:<password>@<host>/<database>?sslmode=require
-
-# Backend Port
 PORT=5000
-
-# Frontend API URL (Vite)
-# Leave blank for local development (uses Vite dev proxy to http://localhost:5000)
-# Set to your live backend URL for production
 VITE_API_URL=
 ```
 
----
-
-## 🚀 Quickstart (Local Development)
-
-1. **Clone the Repository & Install Dependencies**:
-   ```bash
-   git clone https://github.com/Anshhhitaaaa/saaheeli.git
-   cd saaheeli
-   npm install
-   ```
-
-2. **Start the Backend API Server**:
-   ```bash
-   npm run server
-   ```
-   *Output: `Successfully connected to PostgreSQL database`*
-
-3. **Start the Frontend Development Server**:
-   In a second terminal window:
-   ```bash
-   npm run dev
-   ```
-   *App available at `http://localhost:5173`*
-
----
-
-## 🚀 Deployment Commands
-
-To commit and push all recent code, components, and documentation to GitHub:
-
+### 3. Launch Backend API
 ```bash
-git add .
-git commit -m "Comprehensive platform documentation, full-stack username auth, community likes, health sharing, and doctor summary features"
-git push origin main
+npm run server
 ```
+*Output: `Successfully connected to PostgreSQL database`*
+
+### 4. Launch Frontend App
+In a second terminal window:
+```bash
+npm run dev
+```
+*Open `http://localhost:5173` in your browser.*
+
+---
+
+<div align="center">
+
+### 🌸 Designed & Developed with Care for Women Everywhere 🌸
+
+**[Star this Repository ⭐](https://github.com/Anshhhitaaaa/saaheeli)**
+
+</div>
