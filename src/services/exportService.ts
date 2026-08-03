@@ -16,8 +16,10 @@ export function buildDoctorSummary(
   stats: CycleStats | null,
   notes = '',
   realLogs?: CycleDay[],
+  realSymptomLogs?: any[],
 ): DoctorSummaryData {
   const history = realLogs && realLogs.length > 0 ? realLogs : getCycleHistory(email);
+  const symptoms = realSymptomLogs && realSymptomLogs.length > 0 ? realSymptomLogs : symptomHistory;
   const starts: string[] = [];
   let prev = false;
   for (const d of [...history].sort((a, b) => a.date.localeCompare(b.date))) {
@@ -36,7 +38,7 @@ export function buildDoctorSummary(
     generatedAt: new Date().toISOString(),
     cycleStats: stats,
     cycleHistory: history,
-    symptomHistory,
+    symptomHistory: symptoms as SymptomEntry[],
     cycleLengths,
     notes,
   };
