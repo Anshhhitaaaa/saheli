@@ -1,17 +1,89 @@
 export interface Clinic {
   id: string;
   name: string;
+  city: 'delhi' | 'bengaluru' | 'mumbai';
   specialty: 'Gynecology' | 'Fertility' | 'PCOS' | 'Maternity' | 'Menopause' | 'General';
   distanceKm: number;
   nextAvailability: string;
   address: string;
   phone: string;
   acceptsNewPatients: boolean;
+  gynoName?: string;
+  gynoDuty?: boolean;
 }
 
 export const clinics: Clinic[] = [
+  // Delhi Clinics
+  {
+    id: 'd1',
+    city: 'delhi',
+    name: 'Apollo Women’s Health Clinic',
+    specialty: 'Gynecology',
+    distanceKm: 1.2,
+    nextAvailability: 'Tomorrow, 10:30 AM',
+    address: 'E-45 South Extension Part 1, New Delhi',
+    phone: '+91 11 2469 1111',
+    acceptsNewPatients: true,
+    gynoName: 'Dr. Anita Mitra (MD, Senior Gynecologist)',
+    gynoDuty: true,
+  },
+  {
+    id: 'd2',
+    city: 'delhi',
+    name: 'Fortis La Femme Maternity & Gynae',
+    specialty: 'Maternity',
+    distanceKm: 2.8,
+    nextAvailability: 'Thu, 2:00 PM',
+    address: 'S-549 Greater Kailash II, New Delhi',
+    phone: '+91 11 4057 9999',
+    acceptsNewPatients: true,
+    gynoName: 'Dr. Sangeeta Gupta (Obstetrician & Gynae)',
+    gynoDuty: true,
+  },
+  {
+    id: 'd3',
+    city: 'delhi',
+    name: 'Max Smart Women’s & PCOS Centre',
+    specialty: 'PCOS',
+    distanceKm: 3.5,
+    nextAvailability: 'Mon, 11:00 AM',
+    address: '1 Press Enclave Marg, Saket, New Delhi',
+    phone: '+91 11 2651 5050',
+    acceptsNewPatients: true,
+    gynoName: 'Dr. Ritu Sethi (REI & PCOS Specialist)',
+    gynoDuty: true,
+  },
+  {
+    id: 'd4',
+    city: 'delhi',
+    name: 'Bloom Fertility & Gynae Clinic',
+    specialty: 'Fertility',
+    distanceKm: 4.2,
+    nextAvailability: 'Wed, 3:30 PM',
+    address: 'B-12 Vasant Vihar, New Delhi',
+    phone: '+91 11 4123 4567',
+    acceptsNewPatients: true,
+    gynoName: 'Dr. Rashmi Verma (Fertility Specialist)',
+    gynoDuty: true,
+  },
+  {
+    id: 'd5',
+    city: 'delhi',
+    name: 'Sahayata Menopause Care Delhi',
+    specialty: 'Menopause',
+    distanceKm: 5.1,
+    nextAvailability: 'Fri, 9:00 AM',
+    address: 'C-12 Connaught Place, New Delhi',
+    phone: '+91 11 3040 3040',
+    acceptsNewPatients: true,
+    gynoName: 'Dr. Vandana Bhatia (Senior Consultant)',
+    gynoDuty: true,
+  },
+
+  // Bengaluru Clinics
   {
     id: 'c1',
+    city: 'bengaluru',
     name: 'Asha Women’s Health Clinic',
     specialty: 'Gynecology',
     distanceKm: 1.2,
@@ -19,9 +91,12 @@ export const clinics: Clinic[] = [
     address: '14 Garden Road, Bengaluru',
     phone: '+91 80 2345 6789',
     acceptsNewPatients: true,
+    gynoName: 'Dr. Asha Rao (MD, Senior Gynecologist)',
+    gynoDuty: true,
   },
   {
     id: 'c2',
+    city: 'bengaluru',
     name: 'Tara Fertility Centre',
     specialty: 'Fertility',
     distanceKm: 3.8,
@@ -29,9 +104,12 @@ export const clinics: Clinic[] = [
     address: '88 MG Road, Bengaluru',
     phone: '+91 80 2456 7890',
     acceptsNewPatients: true,
+    gynoName: 'Dr. Meenakshi Sundaram (REI & Fertility Specialist)',
+    gynoDuty: true,
   },
   {
     id: 'c3',
+    city: 'bengaluru',
     name: 'Prerna PCOS Care',
     specialty: 'PCOS',
     distanceKm: 5.1,
@@ -39,9 +117,12 @@ export const clinics: Clinic[] = [
     address: '5 Indiranagar, Bengaluru',
     phone: '+91 80 2567 8901',
     acceptsNewPatients: true,
+    gynoName: 'Dr. Sunita Deshmukh (Endocrinology & Gynae)',
+    gynoDuty: false,
   },
   {
     id: 'c4',
+    city: 'bengaluru',
     name: 'Sukoon Maternity Hospital',
     specialty: 'Maternity',
     distanceKm: 6.4,
@@ -49,9 +130,12 @@ export const clinics: Clinic[] = [
     address: '22 Koramangala, Bengaluru',
     phone: '+91 80 2678 9012',
     acceptsNewPatients: false,
+    gynoName: 'Dr. Kavita Verma (Obstetrician)',
+    gynoDuty: true,
   },
   {
     id: 'c5',
+    city: 'bengaluru',
     name: 'Sahayata Menopause Clinic',
     specialty: 'Menopause',
     distanceKm: 4.2,
@@ -59,5 +143,35 @@ export const clinics: Clinic[] = [
     address: '9 Jayanagar, Bengaluru',
     phone: '+91 80 2789 0123',
     acceptsNewPatients: true,
+    gynoName: 'Dr. Rashmi Iyer (Senior Consultant)',
+    gynoDuty: true,
+  },
+
+  // Mumbai Clinics
+  {
+    id: 'm1',
+    city: 'mumbai',
+    name: 'Lilavati Women’s Health Centre',
+    specialty: 'Gynecology',
+    distanceKm: 1.5,
+    nextAvailability: 'Tomorrow, 11:00 AM',
+    address: 'Bandra West, Mumbai',
+    phone: '+91 22 2675 1000',
+    acceptsNewPatients: true,
+    gynoName: 'Dr. Priya Shah (MD, Gynecologist)',
+    gynoDuty: true,
+  },
+  {
+    id: 'm2',
+    city: 'mumbai',
+    name: 'Hinduja Maternity & IVF',
+    specialty: 'Maternity',
+    distanceKm: 3.1,
+    nextAvailability: 'Fri, 4:00 PM',
+    address: 'Mahim, Mumbai',
+    phone: '+91 22 2445 2222',
+    acceptsNewPatients: true,
+    gynoName: 'Dr. Smita Kulkarni (Senior Consultant)',
+    gynoDuty: true,
   },
 ];
