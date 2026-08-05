@@ -154,9 +154,28 @@ async function initDB() {
     `).catch(() => {});
 
     await seedInitialData();
+    await migratePlaintextPasswords();
   } catch (err) {
     console.error(' PostgreSQL Connection Error:', err.message);
     console.log(' Make sure PostgreSQL is running or configure DATABASE_URL in your .env file.');
+  }
+}
+
+async function migratePlaintextPasswords() {
+  if (!pool) return;
+  try {
+    const unhashedUsers = await pool.query("SELECT id, password FROM users WHERE password IS NOT NULL AND password NOT LIKE '$2a$%' AND password NOT LIKE '$2b$%' AND password NOT LIKE '$2y$%'");
+    for (const u of unhashedUsers.rows) {
+      if (u.password) {
+        const hashed = await bcrypt.hash(u.password, 10);
+        await pool.query("UPDATE users SET password = $1 WHERE id = $2", [hashed, u.id]);
+      }
+    }
+    if (unhashedUsers.rows.length > 0) {
+      console.log(`🔒 Encrypted ${unhashedUsers.rows.length} existing plain-text password(s) in Neon database.`);
+    }
+  } catch (err) {
+    console.error('Password migration error:', err.message);
   }
 }
 
@@ -512,6 +531,9 @@ const server = http.createServer(async (req, res) => {
       };
 
       if (patch && typeof patch === 'object') {
+        if (patch.password) {
+          patch.password = await bcrypt.hash(patch.password, 10);
+        }
         for (const [key, val] of Object.entries(patch)) {
           const dbCol = fieldMapping[key] || key;
           setClause.push(`${dbCol} = $${idx++}`);
