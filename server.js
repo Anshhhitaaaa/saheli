@@ -1,6 +1,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import pg from 'pg';
+import bcrypt from 'bcryptjs';
 import { runLangGraphRAGAgent } from './server/langgraph_agent.js';
 
 // Load .env variables if present
@@ -379,12 +380,14 @@ const server = http.createServer(async (req, res) => {
         return sendJSON(res, 400, { error: 'An account with this email address already exists. Please log in.' });
       }
 
+      const hashedPassword = await bcrypt.hash(password, 10);
+
       const newUser = {
         id: 'u_' + Date.now(),
         name: name.trim(),
         username: rawUsername,
         email: cleanEmail,
-        password,
+        password: hashedPassword,
         focus,
         pregnancyMode: focus === 'pregnancy',
         pregnancyWeek: focus === 'pregnancy' ? 8 : null,
@@ -432,8 +435,18 @@ const server = http.createServer(async (req, res) => {
         return sendJSON(res, 400, { error: 'No account found with this username or email. Please sign up.' });
       }
       const userRow = result.rows[0];
-      if (userRow.password && password && userRow.password !== password) {
-        return sendJSON(res, 400, { error: 'Incorrect password. Please try again.' });
+      if (userRow.password && password) {
+        const isHashed = userRow.password.startsWith('$2a$') || userRow.password.startsWith('$2b$') || userRow.password.startsWith('$2y$');
+        let isValid = false;
+        if (isHashed) {
+          isValid = await bcrypt.compare(password, userRow.password);
+        } else {
+          isValid = userRow.password === password;
+        }
+
+        if (!isValid) {
+          return sendJSON(res, 400, { error: 'Incorrect password. Please try again.' });
+        }
       }
 
       const user = mapUser(userRow);
