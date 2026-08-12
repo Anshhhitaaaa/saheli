@@ -119,7 +119,7 @@ export function MedsTrackerPage() {
 
   // Calculate Streak from PostgreSQL data
   let streak = 0;
-  let checkDate = new Date();
+  const checkDate = new Date();
   while (true) {
     const dStr = checkDate.toISOString().slice(0, 10);
     const takenCount = activeMeds.filter((m) => (m.takenDates || []).includes(dStr)).length;
