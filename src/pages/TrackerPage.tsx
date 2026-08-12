@@ -10,8 +10,6 @@ import {
   Plus,
   Trash2,
   Calendar,
-  Activity,
-  HeartHandshake,
 } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
@@ -29,7 +27,7 @@ import {
   symptomHistory as mockSymptomHistory,
   type SymptomEntry,
 } from '../mock/symptoms';
-import { api } from '../services/api';
+import { api, type ApiCycleLog, type ApiSymptomLog } from '../services/api';
 import { LogPeriodStartModal } from '../components/tracker/LogPeriodStartModal';
 
 const flowColors: Record<FlowLevel, string> = {
@@ -95,11 +93,33 @@ export function TrackerPage() {
   useEffect(() => {
     if (user?.email) {
       api.cycle.get(user.email).then((res) => {
-        if (res.logs && res.logs.length > 0) setHistory(res.logs);
+        if (res.logs && res.logs.length > 0) {
+          const mappedLogs: CycleDay[] = res.logs
+            .filter((log): log is ApiCycleLog & { date: string } => Boolean(log.date))
+            .map((log) => ({
+              date: log.date!,
+              flow: (log.flow as FlowLevel) || 'none',
+              note: log.note,
+            }));
+          setHistory(mappedLogs);
+        }
       }).catch(() => { });
 
       api.symptoms.get(user.email).then((res) => {
-        if (res.logs && res.logs.length > 0) setSymptomLogs(res.logs);
+        if (res.logs && res.logs.length > 0) {
+          const mappedSymptoms: SymptomEntry[] = res.logs
+            .filter((log): log is ApiSymptomLog & { date: string } => Boolean(log.date))
+            .map((log) => ({
+              id: String(log.id ?? `s_${log.date}`),
+              date: log.date!,
+              mood: (log.mood as SymptomEntry['mood']) || 'calm',
+              symptoms: Array.isArray(log.symptoms) ? log.symptoms : [],
+              severity: (log.severity as 1 | 2 | 3 | 4 | 5) || 3,
+              note: log.notes || log.note,
+              redFlag: Array.isArray(log.symptoms) && log.symptoms.some((s) => redFlagSymptoms.includes(s)),
+            }));
+          setSymptomLogs(mappedSymptoms);
+        }
       }).catch(() => { });
     }
   }, [user?.email]);

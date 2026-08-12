@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Send, Heart, Shield, Flag, X, TrendingUp } from 'lucide-react';
+import { MessageSquare, Send, Heart, Shield, Flag } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
 import { Disclaimer } from '../components/common/Disclaimer';
 import { communityPosts, type CommunityPost, type CommunityPost as Post } from '../mock/community';
-import { communityInsights } from '../mock/communityInsights';
 import { fadeUp, staggerContainer, easeOut } from '../animations/variants';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -37,7 +36,7 @@ export function CommunityPage() {
     try {
       const res = await api.community.getPosts();
       if (res && res.posts && res.posts.length > 0) {
-        setPosts(res.posts);
+        setPosts(res.posts as unknown as Post[]);
       }
     } catch {}
   };
@@ -73,7 +72,7 @@ export function CommunityPage() {
         body: newPost.body,
       });
       if (res && res.posts && Array.isArray(res.posts) && res.posts.length > 0) {
-        setPosts(res.posts);
+        setPosts(res.posts as unknown as Post[]);
       }
     } catch (err) {
       console.error('Error posting to community DB:', err);
@@ -94,7 +93,7 @@ export function CommunityPage() {
     try {
       const res = await api.community.addReply(postId, authorHandle, replyBody.trim());
       if (res && res.posts && Array.isArray(res.posts) && res.posts.length > 0) {
-        setPosts(res.posts);
+        setPosts(res.posts as unknown as Post[]);
       }
     } catch (err) {
       console.error('Error adding reply to community DB:', err);
@@ -121,7 +120,7 @@ export function CommunityPage() {
     try {
       const res = await api.community.likePost(postId, currentAuthor);
       if (res && res.posts && Array.isArray(res.posts) && res.posts.length > 0) {
-        setPosts(res.posts);
+        setPosts(res.posts as unknown as Post[]);
       }
     } catch (err) {
       console.error('Error liking post in community DB:', err);

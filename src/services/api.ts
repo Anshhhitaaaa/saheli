@@ -1,6 +1,93 @@
 /**
- * API Service for Saheli Full-Stack MongoDB Backend
+ * API Service for Saheli Backend
  */
+
+export interface ApiUser {
+  id?: string;
+  name?: string;
+  username?: string;
+  email?: string;
+  focus?: string;
+  pregnancyMode?: boolean;
+  pregnancyWeek?: number;
+  lastPeriodStart?: string;
+  createdAt?: string;
+  [key: string]: any;
+}
+
+export interface ApiNotification {
+  id: string;
+  category: string;
+  title: string;
+  message: string;
+  discreetMessage: string;
+  read: boolean;
+  createdAt: string;
+  [key: string]: any;
+}
+
+export interface ApiNotificationSettings {
+  discreetMode: boolean;
+  categories: Record<string, boolean>;
+  [key: string]: any;
+}
+
+export interface ApiCycleLog {
+  id?: number | string;
+  email?: string;
+  date?: string;
+  flow?: string;
+  note?: string;
+  updatedAt?: string;
+  [key: string]: any;
+}
+
+export interface ApiSymptomLog {
+  id?: number | string;
+  email?: string;
+  date?: string;
+  symptoms?: string[];
+  notes?: string;
+  mood?: string;
+  severity?: any;
+  updatedAt?: string;
+  [key: string]: any;
+}
+
+export interface ApiMedication {
+  id: string;
+  name: string;
+  type?: string;
+  dose?: string;
+  schedule?: string;
+  active?: boolean;
+  notes?: string;
+  takenDates?: string[];
+  [key: string]: any;
+}
+
+export interface ApiCommunityPost {
+  id: string;
+  topic?: string;
+  author?: string;
+  title?: string;
+  body?: string;
+  replies?: any[];
+  likes?: any[];
+  createdAt?: string;
+  [key: string]: any;
+}
+
+export interface ApiShareLink {
+  id: string;
+  email?: string;
+  name?: string;
+  relationship?: string;
+  permissions?: any;
+  active?: boolean;
+  createdAt?: string;
+  [key: string]: any;
+}
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
@@ -26,35 +113,35 @@ export const api = {
   // Auth API
   auth: {
     signup: (data: { name: string; username: string; email: string; password?: string; focus?: string }) =>
-      request<{ user: any; token: string }>('/api/auth/signup', {
+      request<{ user: ApiUser; token: string }>('/api/auth/signup', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
     login: (usernameOrEmail: string, password?: string) =>
-      request<{ user: any; token: string }>('/api/auth/login', {
+      request<{ user: ApiUser; token: string }>('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ usernameOrEmail, email: usernameOrEmail, username: usernameOrEmail, password }),
       }),
     update: (email: string, patch: Record<string, any>) =>
-      request<{ user: any }>('/api/auth/update', {
+      request<{ user: ApiUser }>('/api/auth/update', {
         method: 'POST',
         body: JSON.stringify({ email, patch }),
       }),
     getProfile: (email: string) =>
-      request<{ user: any }>(`/api/auth/me?email=${encodeURIComponent(email)}`),
+      request<{ user: ApiUser }>(`/api/auth/me?email=${encodeURIComponent(email)}`),
   },
 
   // Cycle Logs API
   cycle: {
     get: (email: string) =>
-      request<{ logs: any[] }>(`/api/cycle?email=${encodeURIComponent(email)}`),
+      request<{ logs: ApiCycleLog[] }>(`/api/cycle?email=${encodeURIComponent(email)}`),
     save: (email: string, date: string, flow: string, note?: string) =>
-      request<{ logs: any[] }>('/api/cycle', {
+      request<{ logs: ApiCycleLog[] }>('/api/cycle', {
         method: 'POST',
         body: JSON.stringify({ email, date, flow, note }),
       }),
     delete: (email: string, date: string) =>
-      request<{ logs: any[] }>(`/api/cycle?email=${encodeURIComponent(email)}&date=${encodeURIComponent(date)}`, {
+      request<{ logs: ApiCycleLog[] }>(`/api/cycle?email=${encodeURIComponent(email)}&date=${encodeURIComponent(date)}`, {
         method: 'DELETE',
       }),
   },
@@ -62,14 +149,14 @@ export const api = {
   // Symptoms API
   symptoms: {
     get: (email: string) =>
-      request<{ logs: any[] }>(`/api/symptoms?email=${encodeURIComponent(email)}`),
+      request<{ logs: ApiSymptomLog[] }>(`/api/symptoms?email=${encodeURIComponent(email)}`),
     save: (email: string, date: string, symptoms: string[], notes?: string, mood?: string, severity?: number) =>
-      request<{ logs: any[] }>('/api/symptoms', {
+      request<{ logs: ApiSymptomLog[] }>('/api/symptoms', {
         method: 'POST',
         body: JSON.stringify({ email, date, symptoms, notes, mood, severity }),
       }),
     delete: (email: string, date: string) =>
-      request<{ logs: any[] }>(`/api/symptoms?email=${encodeURIComponent(email)}&date=${encodeURIComponent(date)}`, {
+      request<{ logs: ApiSymptomLog[] }>(`/api/symptoms?email=${encodeURIComponent(email)}&date=${encodeURIComponent(date)}`, {
         method: 'DELETE',
       }),
   },
@@ -77,38 +164,38 @@ export const api = {
   // Medications API
   medications: {
     get: (email: string) =>
-      request<{ meds: any[] }>(`/api/medications?email=${encodeURIComponent(email)}`),
+      request<{ meds: ApiMedication[] }>(`/api/medications?email=${encodeURIComponent(email)}`),
     create: (email: string, med: { name: string; type: string; dose?: string; schedule?: string; notes?: string }) =>
-      request<{ meds: any[] }>('/api/medications', {
+      request<{ meds: ApiMedication[] }>('/api/medications', {
         method: 'POST',
         body: JSON.stringify({ email, ...med }),
       }),
     update: (email: string, id: string, patch: Record<string, any>) =>
-      request<{ meds: any[] }>(`/api/medications/${id}`, {
+      request<{ meds: ApiMedication[] }>(`/api/medications/${id}`, {
         method: 'PATCH',
         body: JSON.stringify({ email, patch }),
       }),
     delete: (email: string, id: string) =>
-      request<{ meds: any[] }>(`/api/medications/${id}?email=${encodeURIComponent(email)}`, {
+      request<{ meds: ApiMedication[] }>(`/api/medications/${id}?email=${encodeURIComponent(email)}`, {
         method: 'DELETE',
       }),
   },
 
   // Community API
   community: {
-    getPosts: () => request<{ posts: any[] }>('/api/community'),
+    getPosts: () => request<{ posts: ApiCommunityPost[] }>('/api/community'),
     createPost: (data: { topic: string; author: string; title: string; body: string }) =>
-      request<{ posts: any[] }>('/api/community', {
+      request<{ posts: ApiCommunityPost[] }>('/api/community', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
     addReply: (postId: string, author: string, body: string) =>
-      request<{ posts: any[] }>('/api/community/reply', {
+      request<{ posts: ApiCommunityPost[] }>('/api/community/reply', {
         method: 'POST',
         body: JSON.stringify({ postId, author, body }),
       }),
     likePost: (postId: string, userHandle: string) =>
-      request<{ posts: any[] }>('/api/community/like', {
+      request<{ posts: ApiCommunityPost[] }>('/api/community/like', {
         method: 'POST',
         body: JSON.stringify({ postId, userHandle }),
       }),
@@ -117,19 +204,19 @@ export const api = {
   // Sharing API
   sharing: {
     get: (email: string) =>
-      request<{ shares: any[] }>(`/api/sharing?email=${encodeURIComponent(email)}`),
-    create: (email: string, name: string, relationship: string, permissions: any) =>
-      request<{ shares: any[] }>('/api/sharing', {
+      request<{ shares: ApiShareLink[] }>(`/api/sharing?email=${encodeURIComponent(email)}`),
+    create: (email: string, name: string, relationship: string, permissions: Record<string, boolean>) =>
+      request<{ shares: ApiShareLink[] }>('/api/sharing', {
         method: 'POST',
         body: JSON.stringify({ email, name, relationship, permissions }),
       }),
-    update: (email: string, id: string, patch: { permissions?: any; active?: boolean }) =>
-      request<{ shares: any[] }>('/api/sharing/update', {
+    update: (email: string, id: string, patch: { permissions?: Record<string, boolean>; active?: boolean }) =>
+      request<{ shares: ApiShareLink[] }>('/api/sharing/update', {
         method: 'POST',
         body: JSON.stringify({ email, id, ...patch }),
       }),
     getPublicView: (shareId: string) =>
-      request<{ active: boolean; share?: any; userName?: string; cycleData?: any; symptomData?: any; pregnancyData?: any; insightsData?: any; message?: string }>(`/api/sharing/view?id=${encodeURIComponent(shareId)}`),
+      request<{ active: boolean; share?: ApiShareLink; userName?: string; cycleData?: any; symptomData?: any; pregnancyData?: any; insightsData?: any; message?: string }>(`/api/sharing/view?id=${encodeURIComponent(shareId)}`),
   },
 
   // Assistant RAG AI Chat API
@@ -152,16 +239,16 @@ export const api = {
   // Notifications API
   notifications: {
     get: (email: string) =>
-      request<{ notifications: any[] }>(`/api/notifications?email=${encodeURIComponent(email)}`),
+      request<{ notifications: ApiNotification[] }>(`/api/notifications?email=${encodeURIComponent(email)}`),
     markRead: (email: string, notificationId?: string, markAll?: boolean) =>
-      request<{ notifications: any[] }>('/api/notifications/read', {
+      request<{ notifications: ApiNotification[] }>('/api/notifications/read', {
         method: 'POST',
         body: JSON.stringify({ email, notificationId, markAll }),
       }),
     getSettings: (email: string) =>
-      request<{ settings: any }>(`/api/notifications/settings?email=${encodeURIComponent(email)}`),
-    updateSettings: (email: string, discreetMode: boolean, categories: Record<string, boolean>) =>
-      request<{ settings: any }>('/api/notifications/settings', {
+      request<{ settings: ApiNotificationSettings | null }>(`/api/notifications/settings?email=${encodeURIComponent(email)}`),
+    updateSettings: (email: string, discreetMode: boolean, categories: Record<string, boolean> | any) =>
+      request<{ settings: ApiNotificationSettings }>('/api/notifications/settings', {
         method: 'POST',
         body: JSON.stringify({ email, discreetMode, categories }),
       }),

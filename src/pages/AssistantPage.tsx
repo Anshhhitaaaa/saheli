@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Sparkles, Send, BookOpen, AlertTriangle, ShieldCheck, Plus, MessageSquare, Trash2, History, PanelLeftClose, PanelLeftOpen
+  Sparkles, Send, BookOpen, ShieldCheck, Plus, MessageSquare, Trash2, History, PanelLeftClose, PanelLeftOpen
 } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';

@@ -2,9 +2,19 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { useAuth } from './AuthContext';
 
+export type NotificationCategory =
+  | 'cycle'
+  | 'logging'
+  | 'insights'
+  | 'assistant'
+  | 'pregnancy'
+  | 'community'
+  | 'care'
+  | 'account';
+
 export interface AppNotification {
   id: string;
-  category: 'cycle' | 'logging' | 'insights' | 'assistant' | 'pregnancy' | 'community' | 'care' | 'account';
+  category: NotificationCategory;
   title: string;
   message: string;
   discreetMessage: string;
@@ -72,7 +82,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       ]);
 
       if (notifRes.notifications) {
-        setNotifications(notifRes.notifications);
+        setNotifications(notifRes.notifications as AppNotification[]);
       }
       if (settingsRes.settings) {
         setSettings({

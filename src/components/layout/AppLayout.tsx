@@ -19,7 +19,6 @@ import {
   FileText,
   EyeOff,
   CheckCheck,
-  ShieldAlert,
 } from 'lucide-react';
 import { Logo } from '../common/Logo';
 import { ThemeToggle } from '../common/ThemeToggle';

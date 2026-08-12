@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { FileText, Download, Calendar, ClipboardList, TrendingUp, Printer, Check, Eye } from 'lucide-react';
+import { FileText, Calendar, ClipboardList, TrendingUp, Printer, Check, Eye } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
@@ -35,7 +35,7 @@ export function DoctorSummaryPage() {
         ]);
         if (active) {
           setStats(s);
-          if (cycleRes && Array.isArray(cycleRes.logs)) setCycleLogs(cycleRes.logs);
+          if (cycleRes && Array.isArray(cycleRes.logs)) setCycleLogs(cycleRes.logs as unknown as CycleDay[]);
           if (sympRes && Array.isArray(sympRes.logs)) setSymptomLogs(sympRes.logs);
           setLoading(false);
         }
