@@ -8,6 +8,8 @@ import { useAuth, type OnboardingFocus } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 import { fadeUp } from '../animations/variants';
 
+import { validatePasswordStrength } from '../utils/security';
+
 const focusOptions: { value: OnboardingFocus; label: string; emoji: string }[] = [
   { value: 'periods', label: 'My periods', emoji: '🩹' },
   { value: 'pcos', label: 'PCOS', emoji: '🌸' },
@@ -45,8 +47,14 @@ export function SignupPage() {
 
     if (!email) next.email = 'Email is required.';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) next.email = 'Enter a valid email.';
-    if (!password) next.password = 'Password is required.';
-    else if (password.length < 6) next.password = 'At least 6 characters.';
+    if (!password) {
+      next.password = 'Password is required.';
+    } else {
+      const passCheck = validatePasswordStrength(password);
+      if (!passCheck.isValid) {
+        next.password = passCheck.feedback.join(' ') || 'Password must be at least 8 characters long and contain both letters and numbers.';
+      }
+    }
     setErrors(next);
     if (Object.keys(next).length) return;
     setLoading(true);

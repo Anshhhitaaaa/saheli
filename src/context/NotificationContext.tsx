@@ -12,7 +12,8 @@ export interface AppNotification {
   createdAt: string;
 }
 
-export interface NotificationCategories {
+export type NotificationCategories = {
+  [key: string]: boolean;
   cycle: boolean;
   logging: boolean;
   insights: boolean;
@@ -21,7 +22,7 @@ export interface NotificationCategories {
   community: boolean;
   care: boolean;
   account: boolean;
-}
+};
 
 export interface NotificationSettings {
   discreetMode: boolean;

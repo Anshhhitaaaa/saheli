@@ -62,6 +62,39 @@ const mobileItems: NavItem[] = [
   { to: '/profile', label: 'Profile', icon: UserCircle, mobile: true },
 ];
 
+function formatNotificationTime(dateString: string): string {
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return dateString;
+
+  const now = new Date();
+  const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const isToday =
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear();
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday =
+    date.getDate() === yesterday.getDate() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getFullYear() === yesterday.getFullYear();
+
+  if (isToday) {
+    return `Today, ${timeStr}`;
+  }
+  if (isYesterday) {
+    return `Yesterday, ${timeStr}`;
+  }
+  if (date.getFullYear() === now.getFullYear()) {
+    const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    return `${dateStr}, ${timeStr}`;
+  }
+  const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+  return `${dateStr}, ${timeStr}`;
+}
+
 export function AppLayout() {
   const { user, loading, signOut } = useAuth();
   const { notifications, unreadCount, settings, markAsRead, markAllAsRead, updateSettings } = useNotifications();
@@ -336,7 +369,7 @@ export function AppLayout() {
                               <h4 className="text-sm font-600 text-sand-900 dark:text-sand-100">{n.title}</h4>
                               <p className="mt-1 text-xs text-sand-600 dark:text-sand-300">{textToShow}</p>
                               <p className="mt-2 text-[10px] text-sand-400 dark:text-sand-500">
-                                {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {n.category}
+                                {formatNotificationTime(n.createdAt)} · {n.category}
                               </p>
                             </div>
                           </div>

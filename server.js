@@ -323,12 +323,57 @@ function mapNotificationPreference(row) {
   };
 }
 
+// --- SECURITY UTILITIES & MIDDLEWARE ---
+const MAX_PAYLOAD_BYTES = 1024 * 1024; // 1MB Max Body Size Limit (DoS defense)
+const rateLimitMap = new Map();
+
+/**
+ * Sliding window IP Rate Limiter to defend against brute force and DDoS attacks.
+ */
+function checkRateLimit(ip, endpoint, limit = 15, windowMs = 60000) {
+  const key = `${ip}:${endpoint}`;
+  const now = Date.now();
+  const record = rateLimitMap.get(key) || { count: 0, resetTime: now + windowMs };
+
+  if (now > record.resetTime) {
+    record.count = 1;
+    record.resetTime = now + windowMs;
+  } else {
+    record.count += 1;
+  }
+
+  rateLimitMap.set(key, record);
+  return {
+    isLimited: record.count > limit,
+    remaining: Math.max(0, limit - record.count),
+    resetTime: record.resetTime
+  };
+}
+
+/**
+ * Server-side input sanitizer stripping script tags and malicious attributes.
+ */
+function sanitizeServerInput(str) {
+  if (typeof str !== 'string') return str;
+  return str
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+    .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
+    .replace(/javascript:/gi, '');
+}
+
 function sendJSON(res, statusCode, data) {
   res.writeHead(statusCode, {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '1; mode=block',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;"
   });
   res.end(JSON.stringify(data));
 }
@@ -336,7 +381,17 @@ function sendJSON(res, statusCode, data) {
 function parseJSONBody(req) {
   return new Promise((resolve, reject) => {
     let body = '';
-    req.on('data', (chunk) => (body += chunk));
+    let bytesReceived = 0;
+    req.on('data', (chunk) => {
+      bytesReceived += chunk.length;
+      if (bytesReceived > MAX_PAYLOAD_BYTES) {
+        req.destroy();
+        const err = new Error('Payload Too Large: Max size is 1MB');
+        err.statusCode = 413;
+        return reject(err);
+      }
+      body += chunk;
+    });
     req.on('end', () => {
       try {
         resolve(body ? JSON.parse(body) : {});
@@ -355,12 +410,29 @@ const server = http.createServer(async (req, res) => {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'X-XSS-Protection': '1; mode=block'
     });
     return res.end();
   }
 
   const url = new URL(req.url, `http://${req.headers.host}`);
   const pathname = url.pathname;
+  const clientIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+
+  // Endpoint-specific Rate Limiting
+  if (pathname === '/api/auth/login' || pathname === '/api/auth/signup') {
+    const rateCheck = checkRateLimit(clientIP, 'auth', 10, 60000);
+    if (rateCheck.isLimited) {
+      return sendJSON(res, 429, { error: 'Too many authentication attempts. Please try again in 1 minute.' });
+    }
+  } else if (pathname.startsWith('/api/assistant')) {
+    const rateCheck = checkRateLimit(clientIP, 'ai_assistant', 20, 60000);
+    if (rateCheck.isLimited) {
+      return sendJSON(res, 429, { error: 'AI Assistant rate limit reached. Please wait a moment before sending more queries.' });
+    }
+  }
 
   if (!pool) {
     return sendJSON(res, 503, { error: 'Database initializing or connection failed. Please ensure PostgreSQL is running and check DATABASE_URL.' });
@@ -385,8 +457,8 @@ const server = http.createServer(async (req, res) => {
       if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
         return sendJSON(res, 400, { error: 'Please enter a valid email address.' });
       }
-      if (!password || password.length < 6) {
-        return sendJSON(res, 400, { error: 'Password must be at least 6 characters.' });
+      if (!password || password.length < 8 || !/[a-zA-Z]/.test(password) || !/\d/.test(password)) {
+        return sendJSON(res, 400, { error: 'Password must be at least 8 characters long and contain both letters and numbers.' });
       }
 
       const existingUser = await pool.query('SELECT * FROM users WHERE LOWER(username) = $1', [rawUsername]);
@@ -845,12 +917,17 @@ const server = http.createServer(async (req, res) => {
       const { topic, author, title, body: postBody } = body;
       if (!title || !postBody) return sendJSON(res, 400, { error: 'Title and body required' });
 
+      const sanitizedTitle = sanitizeServerInput(title.trim());
+      const sanitizedBody = sanitizeServerInput(postBody.trim());
+      const sanitizedTopic = sanitizeServerInput((topic || 'general').trim());
+      const sanitizedAuthor = sanitizeServerInput((author || 'Anonymous').trim());
+
       const newPost = {
         id: 'p_' + Date.now(),
-        topic: topic || 'general',
-        author: author || 'Anonymous',
-        title,
-        body: postBody,
+        topic: sanitizedTopic,
+        author: sanitizedAuthor,
+        title: sanitizedTitle,
+        body: sanitizedBody,
         replies: [],
         createdAt: new Date().toISOString()
       };
@@ -915,8 +992,9 @@ const server = http.createServer(async (req, res) => {
       const { postId, author, body: replyBody } = body;
       if (!postId || !replyBody) return sendJSON(res, 400, { error: 'PostId and reply body required' });
 
-      const replyAuthor = (author || 'Anonymous').replace(/^@/, '').trim();
-      const reply = { id: 'r_' + Date.now(), author: replyAuthor, body: replyBody };
+      const replyAuthor = sanitizeServerInput((author || 'Anonymous').replace(/^@/, '').trim());
+      const sanitizedReplyBody = sanitizeServerInput(replyBody.trim());
+      const reply = { id: 'r_' + Date.now(), author: replyAuthor, body: sanitizedReplyBody };
 
       const postRes = await pool.query('SELECT * FROM community_posts WHERE id = $1', [postId]);
       if (postRes.rows.length > 0) {
