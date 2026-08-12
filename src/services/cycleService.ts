@@ -78,7 +78,10 @@ export async function getCycleStats(email: string, history?: { date: string; flo
   try {
     const res = await api.cycle.get(email);
     if (res && Array.isArray(res.logs)) {
-      return computeStats(res.logs);
+      const validLogs = res.logs
+        .filter((l): l is typeof l & { date: string; flow: string } => Boolean(l.date && l.flow))
+        .map((l) => ({ date: l.date!, flow: l.flow! }));
+      return computeStats(validLogs);
     }
   } catch {}
   return computeStats(getCycleHistory(email));

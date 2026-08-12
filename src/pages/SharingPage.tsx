@@ -28,12 +28,26 @@ export function SharingPage() {
   const [form, setForm] = useState({ name: '', relationship: '', cycle: true, symptoms: false, pregnancy: false, insights: true });
   const [copied, setCopied] = useState<string | null>(null);
 
+  const mapApiShares = (rawShares: any[]): ShareLink[] =>
+    rawShares.map((s) => ({
+      id: String(s.id),
+      name: s.name || 'Shared Link',
+      relationship: s.relationship || 'Caregiver',
+      permissions: {
+        cycle: Boolean(s.permissions?.cycle),
+        symptoms: Boolean(s.permissions?.symptoms),
+        pregnancy: Boolean(s.permissions?.pregnancy),
+        insights: Boolean(s.permissions?.insights),
+      },
+      active: s.active ?? true,
+    }));
+
   const fetchShares = async () => {
     if (user?.email) {
       try {
         const res = await api.sharing.get(user.email);
         if (res && res.shares && res.shares.length > 0) {
-          setShares(res.shares);
+          setShares(mapApiShares(res.shares));
         }
       } catch {}
     }
@@ -60,7 +74,7 @@ export function SharingPage() {
     if (user?.email) {
       try {
         const res = await api.sharing.create(user.email, newShare.name, newShare.relationship, newShare.permissions);
-        if (res && res.shares && res.shares.length > 0) setShares(res.shares);
+        if (res && res.shares && res.shares.length > 0) setShares(mapApiShares(res.shares));
       } catch {}
     }
   };
@@ -74,7 +88,7 @@ export function SharingPage() {
     if (user?.email) {
       try {
         const res = await api.sharing.update(user.email, id, { permissions: updatedPerms });
-        if (res && res.shares) setShares(res.shares);
+        if (res && res.shares) setShares(mapApiShares(res.shares));
       } catch {}
     }
   };
@@ -85,7 +99,7 @@ export function SharingPage() {
     if (user?.email) {
       try {
         const res = await api.sharing.update(user.email, id, { active: false });
-        if (res && res.shares) setShares(res.shares);
+        if (res && res.shares) setShares(mapApiShares(res.shares));
       } catch {}
     }
   };

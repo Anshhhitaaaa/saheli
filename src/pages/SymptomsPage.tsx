@@ -40,13 +40,24 @@ export function SymptomsPage() {
       const todayDate = new Date().toISOString().slice(0, 10);
       api.symptoms.get(user.email).then((res) => {
         if (res.logs && res.logs.length > 0) {
-          setHistory(res.logs);
-          const todayLog = res.logs.find((l: any) => l.date === todayDate);
+          const mappedLogs: SymptomEntry[] = res.logs
+            .filter((l): l is typeof l & { date: string } => Boolean(l.date))
+            .map((l) => ({
+              id: String(l.id ?? `s_${l.date}`),
+              date: l.date!,
+              mood: (l.mood as SymptomEntry['mood']) || 'calm',
+              symptoms: Array.isArray(l.symptoms) ? l.symptoms : [],
+              severity: (l.severity as 1 | 2 | 3 | 4 | 5) || 3,
+              note: l.notes || l.note,
+              redFlag: Array.isArray(l.symptoms) && l.symptoms.some((s) => redFlagSymptoms.includes(s)),
+            }));
+          setHistory(mappedLogs);
+          const todayLog = mappedLogs.find((l) => l.date === todayDate);
           if (todayLog) {
             if (todayLog.mood) setMood(todayLog.mood);
             if (todayLog.symptoms) setSelected(todayLog.symptoms);
             if (todayLog.severity) setSeverity(todayLog.severity);
-            if (todayLog.notes || todayLog.note) setNote(todayLog.notes || todayLog.note);
+            if (todayLog.note) setNote(todayLog.note);
           }
         } else {
           setHistory([]);

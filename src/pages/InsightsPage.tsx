@@ -47,10 +47,12 @@ export function InsightsPage() {
 
         const starts: string[] = [];
         let prev = false;
-        const sortedLogs = [...logs].sort((a: any, b: any) => a.date.localeCompare(b.date));
+        const sortedLogs = [...logs]
+          .filter((d: any) => Boolean(d.date))
+          .sort((a: any, b: any) => a.date.localeCompare(b.date));
         for (const d of sortedLogs) {
           const isFlow = !!(d.flow && d.flow !== 'none');
-          if (isFlow && !prev) starts.push(d.date);
+          if (isFlow && !prev && d.date) starts.push(d.date);
           prev = isFlow;
         }
         const lengths: { label: string; days: number }[] = [];

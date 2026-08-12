@@ -26,12 +26,25 @@ export function MedsTrackerPage() {
 
   const todayStr = new Date().toISOString().slice(0, 10);
 
+  const mapApiMeds = (rawMeds: any[]): Medication[] =>
+    rawMeds.map((m) => ({
+      id: String(m.id),
+      name: m.name || 'Medication',
+      type: m.type || 'supplement',
+      dose: m.dose || '',
+      schedule: m.schedule || '',
+      active: m.active ?? true,
+      startedAt: m.startedAt || m.started_at || todayStr,
+      notes: m.notes,
+      takenDates: Array.isArray(m.takenDates) ? m.takenDates : (Array.isArray(m.taken_dates) ? m.taken_dates : []),
+    }));
+
   // Fetch real data from PostgreSQL backend
   useEffect(() => {
     if (user?.email) {
       api.medications.get(user.email).then((res) => {
         if (res.meds) {
-          setMeds(res.meds);
+          setMeds(mapApiMeds(res.meds));
         }
       }).catch(() => {});
     }
@@ -64,7 +77,7 @@ export function MedsTrackerPage() {
           schedule: m.schedule,
           notes: m.notes,
         });
-        if (res.meds) setMeds(res.meds);
+        if (res.meds) setMeds(mapApiMeds(res.meds));
       } catch {}
     }
   };
@@ -99,7 +112,7 @@ export function MedsTrackerPage() {
     if (user?.email) {
       try {
         const res = await api.medications.delete(user.email, id);
-        if (res.meds) setMeds(res.meds);
+        if (res.meds) setMeds(mapApiMeds(res.meds));
       } catch {}
     }
   };
