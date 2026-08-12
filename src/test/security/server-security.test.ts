@@ -1,5 +1,4 @@
-import { test, describe } from 'node:test';
-import assert from 'node:assert';
+import { describe, test, expect } from 'vitest';
 
 // Simulated Rate Limiting Engine for unit test
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -31,13 +30,13 @@ describe('Security - Server Protection & Anti-Abuse Controls', () => {
     // Send requests up to limit
     for (let i = 0; i < 5; i++) {
       const res = testCheckRateLimit(testIP, endpoint, 5, 60000);
-      assert.strictEqual(res.isLimited, false);
+      expect(res.isLimited).toBe(false);
     }
 
     // 6th request should trigger limit
     const blockedRes = testCheckRateLimit(testIP, endpoint, 5, 60000);
-    assert.strictEqual(blockedRes.isLimited, true);
-    assert.strictEqual(blockedRes.remaining, 0);
+    expect(blockedRes.isLimited).toBe(true);
+    expect(blockedRes.remaining).toBe(0);
   });
 
   test('Payload size guard blocks requests exceeding 1MB limit', () => {
@@ -45,8 +44,8 @@ describe('Security - Server Protection & Anti-Abuse Controls', () => {
     const normalPayloadSize = 500 * 1024; // 500 KB
     const oversizedPayloadSize = 2 * 1024 * 1024; // 2 MB
 
-    assert.strictEqual(normalPayloadSize <= MAX_PAYLOAD_BYTES, true);
-    assert.strictEqual(oversizedPayloadSize > MAX_PAYLOAD_BYTES, true);
+    expect(normalPayloadSize <= MAX_PAYLOAD_BYTES).toBe(true);
+    expect(oversizedPayloadSize > MAX_PAYLOAD_BYTES).toBe(true);
   });
 
   test('OWASP security headers dictionary contains required headers', () => {
@@ -59,9 +58,9 @@ describe('Security - Server Protection & Anti-Abuse Controls', () => {
       'Content-Security-Policy': "default-src 'self';"
     };
 
-    assert.strictEqual(securityHeaders['X-Content-Type-Options'], 'nosniff');
-    assert.strictEqual(securityHeaders['X-Frame-Options'], 'DENY');
-    assert.strictEqual(securityHeaders['X-XSS-Protection'], '1; mode=block');
-    assert.ok(securityHeaders['Strict-Transport-Security'].includes('max-age=31536000'));
+    expect(securityHeaders['X-Content-Type-Options']).toBe('nosniff');
+    expect(securityHeaders['X-Frame-Options']).toBe('DENY');
+    expect(securityHeaders['X-XSS-Protection']).toBe('1; mode=block');
+    expect(securityHeaders['Strict-Transport-Security'].includes('max-age=31536000')).toBe(true);
   });
 });

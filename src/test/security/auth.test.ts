@@ -1,37 +1,36 @@
-import { test, describe } from 'node:test';
-import assert from 'node:assert';
-import { validatePasswordStrength, isValidEmail, isValidUsername } from '../../utils/security.ts';
+import { describe, test, expect } from 'vitest';
+import { validatePasswordStrength, isValidEmail, isValidUsername } from '../../utils/security';
 
 describe('Security - Authentication & Credential Security', () => {
   test('validatePasswordStrength rejects weak/short passwords', () => {
     const weakPass = validatePasswordStrength('12345');
-    assert.strictEqual(weakPass.isValid, false);
-    assert.ok(weakPass.feedback.length > 0);
+    expect(weakPass.isValid).toBe(false);
+    expect(weakPass.feedback.length).toBeGreaterThan(0);
   });
 
   test('validatePasswordStrength rejects passwords lacking numbers', () => {
     const noNumbers = validatePasswordStrength('OnlyLettersHere');
-    assert.strictEqual(noNumbers.isValid, false);
+    expect(noNumbers.isValid).toBe(false);
   });
 
   test('validatePasswordStrength approves strong password (>=8 chars, letters, and numbers)', () => {
     const strongPass = validatePasswordStrength('SaheliHealth2026!');
-    assert.strictEqual(strongPass.isValid, true);
-    assert.ok(strongPass.score >= 3);
+    expect(strongPass.isValid).toBe(true);
+    expect(strongPass.score).toBeGreaterThanOrEqual(3);
   });
 
   test('isValidEmail correctly identifies valid and malformed email addresses', () => {
-    assert.strictEqual(isValidEmail('user@saheli.health'), true);
-    assert.strictEqual(isValidEmail('invalid-email'), false);
-    assert.strictEqual(isValidEmail('user@domain'), false);
-    assert.strictEqual(isValidEmail(''), false);
+    expect(isValidEmail('user@saheli.health')).toBe(true);
+    expect(isValidEmail('invalid-email')).toBe(false);
+    expect(isValidEmail('user@domain')).toBe(false);
+    expect(isValidEmail('')).toBe(false);
   });
 
   test('isValidUsername validates handle length and disallowed special characters', () => {
-    assert.strictEqual(isValidUsername('@valid_user123'), true);
-    assert.strictEqual(isValidUsername('short'), true);
-    assert.strictEqual(isValidUsername('ab'), false); // Too short
-    assert.strictEqual(isValidUsername('user<script>'), false); // Disallowed characters
-    assert.strictEqual(isValidUsername('user with spaces'), false);
+    expect(isValidUsername('@valid_user123')).toBe(true);
+    expect(isValidUsername('short')).toBe(true);
+    expect(isValidUsername('ab')).toBe(false); // Too short
+    expect(isValidUsername('user<script>')).toBe(false); // Disallowed characters
+    expect(isValidUsername('user with spaces')).toBe(false);
   });
 });

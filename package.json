@@ -10,8 +10,8 @@
     "lint": "eslint . --max-warnings=999",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
-    "test": "node --test src/test/security/*.test.ts",
-    "test:security": "node --test src/test/security/*.test.ts",
+    "test": "vitest run",
+    "test:security": "vitest run src/test/security",
     "test:vitest": "vitest run",
     "test:coverage": "vitest run --coverage"
   },
