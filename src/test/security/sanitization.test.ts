@@ -36,9 +36,9 @@ describe('Security - Input Sanitization & XSS Defense', () => {
 
   test('handles null and empty input safely without throwing exceptions', () => {
     assert.strictEqual(sanitizeHTML(''), '');
-    // @ts-ignore
+    // @ts-expect-error testing null input handling
     assert.strictEqual(sanitizeHTML(null), '');
-    // @ts-ignore
+    // @ts-expect-error testing undefined input handling
     assert.strictEqual(stripDangerousTags(undefined), '');
   });
 });

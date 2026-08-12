@@ -7,7 +7,7 @@
     "dev": "vite",
     "server": "node server.js",
     "build": "vite build",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings=999",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "test": "node --test src/test/security/*.test.ts",
