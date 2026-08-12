@@ -208,7 +208,7 @@ export const articles: Article[] = [
 ];
 
 export const articleSummaries: ArticleSummary[] = articles.map(
-  ({ body, takeaways, clinicalTerms, ...summary }) => summary,
+  ({ body: _body, takeaways: _takeaways, clinicalTerms: _clinicalTerms, ...summary }) => summary,
 );
 
 export function getArticle(id: string): Article | undefined {

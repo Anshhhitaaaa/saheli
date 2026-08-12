@@ -125,16 +125,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const res = await api.auth.login(usernameOrEmail, password);
           persist(res.user);
-        } catch (err: any) {
-          throw new Error(err.message || 'Invalid username/email or password.');
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : 'Invalid username/email or password.';
+          throw new Error(errorMsg);
         }
       },
       signUp: async ({ name, username, email, password, focus = 'general' }) => {
         try {
           const res = await api.auth.signup({ name, username, email, password, focus });
           persist(res.user);
-        } catch (err: any) {
-          throw new Error(err.message || 'Could not create account.');
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : 'Could not create account.';
+          throw new Error(errorMsg);
         }
       },
       signOut: () => persist(null),
