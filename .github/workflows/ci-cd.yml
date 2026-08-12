@@ -1,0 +1,45 @@
+name: CI/CD Pipeline & SonarQube Scan
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test-scan:
+    name: Build, Test & SonarQube Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Shallow clones disabled for accurate SonarQube blame and analysis
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: TypeScript Typecheck
+        run: npm run typecheck
+
+      - name: ESLint Code Check
+        run: npm run lint
+
+      - name: Run Vitest Security & Unit Tests with Coverage
+        run: npm run test:coverage
+
+      - name: Build Production Bundle
+        run: npm run build
+
+      - name: SonarQube / SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v3.1.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
