@@ -151,6 +151,7 @@ async function initDB() {
     await pool.query(`
       UPDATE users SET username = LOWER(SPLIT_PART(email, '@', 1)) WHERE username IS NULL OR username = '';
       ALTER TABLE community_posts ADD COLUMN IF NOT EXISTS likes JSONB DEFAULT '[]';
+      ALTER TABLE community_posts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
     `).catch(() => {});
 
     await seedInitialData();
@@ -282,7 +283,8 @@ function mapCommunityPost(row) {
     body: row.body,
     replies: typeof row.replies === 'string' ? JSON.parse(row.replies) : (row.replies || []),
     likes: typeof row.likes === 'string' ? JSON.parse(row.likes) : (row.likes || []),
-    createdAt: row.created_at
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
   };
 }
 
@@ -1026,6 +1028,63 @@ const server = http.createServer(async (req, res) => {
         SET replies = replies || $1::jsonb
         WHERE id = $2
       `, [JSON.stringify([reply]), postId]);
+
+      const resPosts = await pool.query('SELECT * FROM community_posts ORDER BY created_at DESC');
+      return sendJSON(res, 200, { posts: resPosts.rows.map(mapCommunityPost) });
+    }
+
+    if ((pathname === '/api/community/edit' || pathname === '/api/community') && (req.method === 'PUT' || req.method === 'PATCH' || (req.method === 'POST' && pathname === '/api/community/edit'))) {
+      const body = await parseJSONBody(req);
+      const { id, postId, author, title, body: postBody, topic } = body;
+      const targetId = id || postId;
+      if (!targetId || !title || !postBody) return sendJSON(res, 400, { error: 'Post ID, title, and body required' });
+
+      const postRes = await pool.query('SELECT * FROM community_posts WHERE id = $1', [targetId]);
+      if (postRes.rows.length === 0) return sendJSON(res, 404, { error: 'Post not found' });
+
+      const existingPost = mapCommunityPost(postRes.rows[0]);
+      const cleanAuthor = (author || '').replace(/^@/, '').toLowerCase().trim();
+      const existingAuthor = (existingPost.author || '').replace(/^@/, '').toLowerCase().trim();
+
+      if (cleanAuthor && existingAuthor && cleanAuthor !== existingAuthor) {
+        return sendJSON(res, 403, { error: 'You are not authorized to edit this post' });
+      }
+
+      const sanitizedTitle = sanitizeServerInput(title.trim());
+      const sanitizedBody = sanitizeServerInput(postBody.trim());
+      const sanitizedTopic = sanitizeServerInput((topic || existingPost.topic || 'general').trim());
+
+      await pool.query(
+        `UPDATE community_posts SET title = $1, body = $2, topic = $3, updated_at = NOW() WHERE id = $4`,
+        [sanitizedTitle, sanitizedBody, sanitizedTopic, targetId]
+      );
+
+      const resPosts = await pool.query('SELECT * FROM community_posts ORDER BY created_at DESC');
+      return sendJSON(res, 200, { posts: resPosts.rows.map(mapCommunityPost) });
+    }
+
+    if (pathname === '/api/community' && req.method === 'DELETE') {
+      const body = req.headers['content-type']?.includes('application/json') ? await parseJSONBody(req).catch(() => ({})) : {};
+      const id = url.searchParams.get('id') || body.id || body.postId;
+      const author = url.searchParams.get('author') || body.author;
+
+      if (!id) return sendJSON(res, 400, { error: 'Post ID is required' });
+
+      const postRes = await pool.query('SELECT * FROM community_posts WHERE id = $1', [id]);
+      if (postRes.rows.length === 0) {
+        const resPosts = await pool.query('SELECT * FROM community_posts ORDER BY created_at DESC');
+        return sendJSON(res, 200, { posts: resPosts.rows.map(mapCommunityPost) });
+      }
+
+      const existingPost = mapCommunityPost(postRes.rows[0]);
+      const cleanAuthor = (author || '').replace(/^@/, '').toLowerCase().trim();
+      const existingAuthor = (existingPost.author || '').replace(/^@/, '').toLowerCase().trim();
+
+      if (cleanAuthor && existingAuthor && cleanAuthor !== existingAuthor) {
+        return sendJSON(res, 403, { error: 'You are not authorized to delete this post' });
+      }
+
+      await pool.query('DELETE FROM community_posts WHERE id = $1', [id]);
 
       const resPosts = await pool.query('SELECT * FROM community_posts ORDER BY created_at DESC');
       return sendJSON(res, 200, { posts: resPosts.rows.map(mapCommunityPost) });

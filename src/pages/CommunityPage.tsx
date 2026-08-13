@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Send, Heart, Shield, Flag } from 'lucide-react';
+import { MessageSquare, Send, Heart, Shield, Flag, Pencil, Trash2, Check, X } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
@@ -12,6 +12,21 @@ import { useAuth } from '../context/AuthContext';
 
 const topics = ['all', 'periods', 'pcos', 'fertility', 'pregnancy', 'menopause', 'general'] as const;
 const categoryOptions = ['general', 'periods', 'pcos', 'fertility', 'pregnancy', 'menopause'] as const;
+
+function formatTimeAgo(isoString: string): string {
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return '';
+  const now = new Date();
+  const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
+  if (diffSec < 60) return 'just now';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 7) return `${diffDay}d ago`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 
 export function CommunityPage() {
   const { user } = useAuth();
@@ -25,6 +40,7 @@ export function CommunityPage() {
   });
   const [reporting, setReporting] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState('');
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
 
   const currentAuthor = user?.username
     ? user.username.replace(/^@/, '')
@@ -79,6 +95,39 @@ export function CommunityPage() {
     }
   };
 
+  const handleEditPost = async (postId: string, title: string, body: string, topicVal: Post['topic']) => {
+    if (!title.trim() || !body.trim()) return;
+    const nowIso = new Date().toISOString();
+
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId ? { ...p, title: title.trim(), body: body.trim(), topic: topicVal, updatedAt: nowIso } : p
+      )
+    );
+
+    try {
+      const res = await api.community.editPost(postId, currentAuthor, title.trim(), body.trim(), topicVal);
+      if (res && res.posts && Array.isArray(res.posts) && res.posts.length > 0) {
+        setPosts(res.posts as unknown as Post[]);
+      }
+    } catch (err) {
+      console.error('Error editing post in DB:', err);
+    }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
+
+    try {
+      const res = await api.community.deletePost(postId, currentAuthor);
+      if (res && res.posts && Array.isArray(res.posts)) {
+        setPosts(res.posts as unknown as Post[]);
+      }
+    } catch (err) {
+      console.error('Error deleting post from DB:', err);
+    }
+  };
+
   const handleReply = async (postId: string, replyBody: string) => {
     if (!replyBody.trim()) return;
     const authorHandle = currentAuthor;
@@ -103,7 +152,6 @@ export function CommunityPage() {
   const handleLike = async (postId: string) => {
     if (!currentAuthor) return;
 
-    // Instant Optimistic Update (0ms delay)
     setPosts((prev) =>
       prev.map((p) => {
         if (p.id !== postId) return p;
@@ -116,7 +164,6 @@ export function CommunityPage() {
       })
     );
 
-    // Sync with PostgreSQL backend in background
     try {
       const res = await api.community.likePost(postId, currentAuthor);
       if (res && res.posts && Array.isArray(res.posts) && res.posts.length > 0) {
@@ -219,10 +266,36 @@ export function CommunityPage() {
               onReply={(body) => handleReply(post.id, body)}
               onLike={() => handleLike(post.id)}
               onReport={() => setReporting(post.id)}
+              onEdit={(title, body, topicVal) => handleEditPost(post.id, title, body, topicVal)}
+              onDeleteRequest={() => setDeletingPostId(post.id)}
             />
           ))}
         </AnimatePresence>
       </motion.div>
+
+      {/* Delete Confirmation Modal */}
+      <Modal open={!!deletingPostId} onClose={() => setDeletingPostId(null)} title="Delete post?" size="sm">
+        <div className="space-y-4">
+          <p className="text-sm text-sand-600 dark:text-sand-300">
+            Are you sure you want to delete this post? This action cannot be undone.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setDeletingPostId(null)}>Cancel</Button>
+            <Button
+              size="sm"
+              className="bg-danger text-white hover:bg-danger/90"
+              onClick={() => {
+                if (deletingPostId) {
+                  handleDeletePost(deletingPostId);
+                  setDeletingPostId(null);
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Report Modal */}
       <Modal open={!!reporting} onClose={() => { setReporting(null); setReportReason(''); }} title="Report this post" size="sm">
@@ -254,10 +327,30 @@ export function CommunityPage() {
   );
 }
 
-function PostCard({ post, onReply, onLike, onReport }: { post: CommunityPost; onReply: (body: string) => void; onLike: () => void; onReport: () => void }) {
+function PostCard({
+  post,
+  onReply,
+  onLike,
+  onReport,
+  onEdit,
+  onDeleteRequest,
+}: {
+  post: CommunityPost;
+  onReply: (body: string) => void;
+  onLike: () => void;
+  onReport: () => void;
+  onEdit: (title: string, body: string, topic: Post['topic']) => void;
+  onDeleteRequest: () => void;
+}) {
   const { user } = useAuth();
   const [replying, setReplying] = useState(false);
-  const [body, setBody] = useState('');
+  const [replyBody, setReplyBody] = useState('');
+
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(post.title);
+  const [editBody, setEditBody] = useState(post.body);
+  const [editTopic, setEditTopic] = useState<Post['topic']>(post.topic);
+
   const authorDisplay = post.author ? post.author.replace(/^@/, '') : 'anonymous';
   const currentAuthor = user?.username
     ? user.username.replace(/^@/, '')
@@ -265,8 +358,22 @@ function PostCard({ post, onReply, onLike, onReport }: { post: CommunityPost; on
     ? user.name.toLowerCase().replace(/\s+/g, '_')
     : 'anonymous';
 
+  const isAuthor = currentAuthor.toLowerCase() === authorDisplay.toLowerCase();
   const likesList = Array.isArray(post.likes) ? post.likes : [];
   const isLiked = currentAuthor && likesList.includes(currentAuthor);
+
+  const handleSaveEdit = () => {
+    if (!editTitle.trim() || !editBody.trim()) return;
+    onEdit(editTitle.trim(), editBody.trim(), editTopic);
+    setEditing(false);
+  };
+
+  const handleCancelEdit = () => {
+    setEditTitle(post.title);
+    setEditBody(post.body);
+    setEditTopic(post.topic);
+    setEditing(false);
+  };
 
   return (
     <motion.div variants={fadeUp} initial="hidden" animate="visible" exit={{ opacity: 0 }} layout>
@@ -278,16 +385,95 @@ function PostCard({ post, onReply, onLike, onReport }: { post: CommunityPost; on
             </div>
             <span className="text-sm font-600 text-clay-600 dark:text-clay-300">@{authorDisplay}</span>
           </div>
-          <span className="rounded-full bg-sand-100/90 px-3 py-1 text-xs font-600 capitalize text-sand-700 dark:bg-sand-700/60 dark:text-sand-200">
-            {post.topic}
-          </span>
+
+          <div className="flex items-center gap-2">
+            {!editing && (
+              <span className="rounded-full bg-sand-100/90 px-3 py-1 text-xs font-600 capitalize text-sand-700 dark:bg-sand-700/60 dark:text-sand-200">
+                {post.topic}
+              </span>
+            )}
+            {isAuthor && !editing && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setEditing(true)}
+                  className="rounded-lg p-1.5 text-sand-500 hover:bg-sand-100 hover:text-clay-600 dark:text-sand-400 dark:hover:bg-sand-800 dark:hover:text-clay-300 transition-colors"
+                  title="Edit post"
+                  aria-label="Edit post"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={onDeleteRequest}
+                  className="rounded-lg p-1.5 text-sand-500 hover:bg-danger/10 hover:text-danger dark:text-sand-400 transition-colors"
+                  title="Delete post"
+                  aria-label="Delete post"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
-        <h3 className="mt-3 font-display text-lg font-600 text-sand-900 dark:text-sand-100">{post.title}</h3>
-        <p className="mt-1.5 text-sm leading-relaxed text-sand-600 dark:text-sand-300">{post.body}</p>
-        
-        <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-sand-500 border-t border-sand-200/50 pt-3 dark:border-sand-700/50">
-          <span className="text-sand-400">{new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+        {/* Edit Form Mode */}
+        {editing ? (
+          <div className="mt-3 space-y-3 rounded-2xl border border-clay-200/80 bg-sand-50/50 p-4 dark:border-clay-700/60 dark:bg-sand-800/40">
+            <div>
+              <label className="mb-1 block text-xs font-600 uppercase tracking-wide text-sand-600 dark:text-sand-300">
+                Category
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {categoryOptions.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setEditTopic(cat)}
+                    className={`chip capitalize text-xs ${editTopic === cat ? 'chip-active' : ''}`}
+                    aria-pressed={editTopic === cat}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <input
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              placeholder="Post Title"
+              className="input-base text-sm bg-white dark:bg-sand-900 border-sand-200 dark:border-sand-700"
+            />
+            <textarea
+              value={editBody}
+              onChange={(e) => setEditBody(e.target.value)}
+              rows={3}
+              placeholder="Edit your post content…"
+              className="input-base resize-none text-sm bg-white dark:bg-sand-900 border-sand-200 dark:border-sand-700"
+            />
+            <div className="flex justify-end gap-2 pt-1">
+              <Button size="sm" variant="ghost" leftIcon={<X className="h-4 w-4" />} onClick={handleCancelEdit}>
+                Cancel
+              </Button>
+              <Button size="sm" variant="primary" leftIcon={<Check className="h-4 w-4" />} onClick={handleSaveEdit}>
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <h3 className="mt-3 font-display text-lg font-600 text-sand-900 dark:text-sand-100">{post.title}</h3>
+            <p className="mt-1.5 text-sm leading-relaxed text-sand-600 dark:text-sand-300">{post.body}</p>
+          </>
+        )}
+
+        <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-sand-500 border-t border-sand-200/50 pt-3 dark:border-sand-700/50">
+          <div className="flex items-center gap-1.5 text-sand-400 dark:text-sand-400">
+            <span>{new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+            {post.updatedAt && (
+              <span className="italic text-sand-500 dark:text-sand-400">
+                • (edited {formatTimeAgo(post.updatedAt)})
+              </span>
+            )}
+          </div>
           <button
             onClick={onLike}
             className={`flex items-center gap-1.5 font-600 transition-colors ${
@@ -305,9 +491,11 @@ function PostCard({ post, onReply, onLike, onReport }: { post: CommunityPost; on
             <MessageSquare className="h-4 w-4" />
             <span>{post.replies?.length || 0} {post.replies?.length === 1 ? 'reply' : 'replies'}</span>
           </button>
-          <button onClick={onReport} className="ml-auto flex items-center gap-1 hover:text-danger text-sand-400 transition-colors" aria-label="Report post" >
-            <Flag className="h-3.5 w-3.5" /> Report
-          </button>
+          {!isAuthor && (
+            <button onClick={onReport} className="ml-auto flex items-center gap-1 hover:text-danger text-sand-400 transition-colors" aria-label="Report post" >
+              <Flag className="h-3.5 w-3.5" /> Report
+            </button>
+          )}
         </div>
 
         {/* Replies List */}
@@ -342,8 +530,8 @@ function PostCard({ post, onReply, onLike, onReport }: { post: CommunityPost; on
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
               <div className="mt-4 rounded-2xl border border-clay-200/80 bg-sand-50/70 p-4 dark:border-clay-700/60 dark:bg-sand-800/50 shadow-sm">
                 <textarea
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
+                  value={replyBody}
+                  onChange={(e) => setReplyBody(e.target.value)}
                   rows={3}
                   placeholder={`Write a thoughtful reply to @${authorDisplay}…`}
                   className="input-base resize-none text-sm bg-white dark:bg-sand-900 border-sand-200 dark:border-sand-700"
@@ -352,7 +540,7 @@ function PostCard({ post, onReply, onLike, onReport }: { post: CommunityPost; on
                   <span className="text-xs text-sand-600 dark:text-sand-300">Replying as <strong className="text-clay-600 dark:text-clay-300">@{currentAuthor}</strong></span>
                   <div className="flex gap-2">
                     <Button size="sm" variant="ghost" onClick={() => setReplying(false)}>Cancel</Button>
-                    <Button size="sm" variant="primary" leftIcon={<Send className="h-4 w-4" />} onClick={() => { if (body.trim()) { onReply(body); setBody(''); setReplying(false); } }}>
+                    <Button size="sm" variant="primary" leftIcon={<Send className="h-4 w-4" />} onClick={() => { if (replyBody.trim()) { onReply(replyBody); setReplyBody(''); setReplying(false); } }}>
                       Post Reply
                     </Button>
                   </div>

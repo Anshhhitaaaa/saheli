@@ -7,6 +7,7 @@ export interface CommunityPost {
   replies: { id: string; author: string; body: string }[];
   likes?: string[];
   createdAt: string;
+  updatedAt?: string;
 }
 
 export const communityPosts: CommunityPost[] = [

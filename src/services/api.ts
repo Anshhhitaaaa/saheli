@@ -75,6 +75,7 @@ export interface ApiCommunityPost {
   replies?: any[];
   likes?: any[];
   createdAt?: string;
+  updatedAt?: string;
   [key: string]: any;
 }
 
@@ -198,6 +199,15 @@ export const api = {
       request<{ posts: ApiCommunityPost[] }>('/api/community/like', {
         method: 'POST',
         body: JSON.stringify({ postId, userHandle }),
+      }),
+    editPost: (id: string, author: string, title: string, body: string, topic?: string) =>
+      request<{ posts: ApiCommunityPost[] }>('/api/community/edit', {
+        method: 'POST',
+        body: JSON.stringify({ id, author, title, body, topic }),
+      }),
+    deletePost: (id: string, author: string) =>
+      request<{ posts: ApiCommunityPost[] }>(`/api/community?id=${encodeURIComponent(id)}&author=${encodeURIComponent(author)}`, {
+        method: 'DELETE',
       }),
   },
 
